@@ -28,25 +28,35 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
 
 ## 📦 Installation
 
-1. Clone this repository:
+### Prerequisites
+- **Node.js 18+** installed on your system
+- **npm** (comes with Node.js)
+
+### Step 1: Clone and Build
+
+1. **Clone this repository:**
    ```bash
    git clone https://github.com/MightyDillah/apple-doc-mcp.git
    cd apple-doc-mcp
    ```
 
-2. Ready to use! (Pre-built distribution included)
+2. **Install dependencies:**
    ```bash
-   # No build step required - just configure your MCP client
+   npm install
    ```
+   
+3. **Build the server:**
+   ```bash
+   npm run build
+   ```
+   This compiles the TypeScript code and creates the `dist/` folder with the executable server.
 
-## 🔌 Quick Setup
 
-### Step 1: Configure Your AI Assistant
-
-**Claude Desktop**: Edit `~/.config/claude/claude_desktop_config.json`
-**Cursor**: Settings (`Cmd/Ctrl + ,`) → Extensions → MCP
-**Continue.dev**: Edit `~/.continue/config.json`
-**VS Code (Claude)**: Settings → MCP Servers
+### Step 2: Configure Your AI Assistant
+  - **Claude Desktop**: Edit `~/.config/claude/claude_desktop_config.json`
+  - **Cursor**: Settings (`Cmd/Ctrl + ,`) → Extensions → MCP
+  - **Continue.dev**: Edit `~/.continue/config.json`
+  - **VS Code (Claude)**: Settings → MCP Servers
 
 ```json
 {
@@ -58,13 +68,48 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
   }
 }
 ```
-*Replace `/path/to/apple-doc-mcp` with the actual path to your cloned repository.*
+**⚠️ Important:**: *Replace `/path/to/apple-doc-mcp` with the actual path to your cloned repository.*
 
-### Step 2: Restart & Test
+**💡 Tip:** To get the absolute path on macOS/Linux, run `pwd` inside the `apple-doc-mcp` folder.
+
+### Step 3: Restart & Test
 1. Restart your AI assistant
 2. Try: "List available Apple technologies"
 3. You should see 4 new tools available
 4. The server will automatically notify you if updates are available on startup
+
+## 🔧 Troubleshooting
+
+### "0 tools" or Server Won't Start
+
+- **Check Node.js version:** Ensure you have Node.js 18+ installed (`node --version`)
+- **Verify build completed:** Make sure `dist/index.js` exists after running `npm run build`
+- **Use absolute paths:** Relative paths in MCP config often fail
+- **Check config syntax:** Ensure your JSON configuration is valid
+- **Restart completely:** Close and reopen your AI assistant after config changes
+
+### Test the Server Directly
+
+```bash
+# Navigate to your project folder
+cd /path/to/apple-doc-mcp
+
+# Test the server starts without errors
+node dist/index.js
+```
+You should see: `Apple Developer Documentation MCP server running on stdio`
+
+### Common Path Issues
+
+```bash
+# macOS/Linux - Get absolute path
+pwd
+# Example output: /Users/yourname/projects/apple-doc-mcp
+
+# Windows
+echo %cd%
+# Example output: C:\Users\yourname\projects\apple-doc-mcp
+```
 
 ## 🎯 How to Use
 
