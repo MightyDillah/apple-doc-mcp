@@ -8,7 +8,6 @@ const CONTAINERIZATION_BASE_URL =
 const HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-  Referer: 'https://developer.apple.com/documentation',
   DNT: '1',
 }
 
@@ -81,7 +80,7 @@ export class AppleDevDocsClient {
   private cache = new Map<string, any>()
   private readonly cacheTimeout = 10 * 60 * 1000 // 10 minutes
 
-  private async makeRequest<T>(url: string): Promise<T> {
+  private async makeRequest<T>(referrer: string, url: string): Promise<T> {
     // Simple cache check
     const cached = this.cache.get(url)
     if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -90,7 +89,7 @@ export class AppleDevDocsClient {
 
     try {
       const response = await axios.get(url, {
-        headers: HEADERS,
+        headers: { ...HEADERS, Referer: referrer },
         timeout: 15000, // 15 second timeout
       })
 
@@ -109,7 +108,10 @@ export class AppleDevDocsClient {
 
   async getTechnologies(): Promise<Record<string, Technology>> {
     const url = `${BASE_URL}/documentation/technologies.json`
-    const data = await this.makeRequest<any>(url)
+    const data = await this.makeRequest<any>(
+      'https://developer.apple.com/documentation',
+      url
+    )
     return data.references || {}
   }
 
@@ -117,7 +119,10 @@ export class AppleDevDocsClient {
     Record<string, ContainerTechnology>
   > {
     const url = `${CONTAINER_BASE_URL}/documentation.json`
-    const data = await this.makeRequest<any>(url)
+    const data = await this.makeRequest<any>(
+      'https://apple.github.io/container/documentation',
+      url
+    )
     return data.references || {}
   }
 
@@ -125,32 +130,47 @@ export class AppleDevDocsClient {
     Record<string, ContainerizationTechnology>
   > {
     const url = `${CONTAINERIZATION_BASE_URL}/documentation.json`
-    const data = await this.makeRequest<any>(url)
+    const data = await this.makeRequest<any>(
+      'https://apple.github.io/containerization/documentation',
+      url
+    )
     return data.references || {}
   }
 
   async getFramework(frameworkName: string): Promise<FrameworkData> {
     const url = `${BASE_URL}/documentation/${frameworkName}.json`
-    return await this.makeRequest<FrameworkData>(url)
+    return await this.makeRequest<FrameworkData>(
+      'https://developer.apple.com/documentation',
+      url
+    )
   }
 
   async getContainerFramework(frameworkName: string): Promise<FrameworkData> {
     const url = `${CONTAINER_BASE_URL}/documentation/${frameworkName}.json`
-    return await this.makeRequest<FrameworkData>(url)
+    return await this.makeRequest<FrameworkData>(
+      'https://apple.github.io/container/documentation',
+      url
+    )
   }
 
   async getContainerizationFramework(
     frameworkName: string
   ): Promise<FrameworkData> {
     const url = `${CONTAINERIZATION_BASE_URL}/documentation/${frameworkName}.json`
-    return await this.makeRequest<FrameworkData>(url)
+    return await this.makeRequest<FrameworkData>(
+      'https://apple.github.io/containerization/documentation',
+      url
+    )
   }
 
   async getSymbol(path: string): Promise<SymbolData> {
     // Remove leading slash if present
     const cleanPath = path.startsWith('/') ? path.slice(1) : path
     const url = `${BASE_URL}/${cleanPath}.json`
-    return await this.makeRequest<SymbolData>(url)
+    return await this.makeRequest<SymbolData>(
+      'https://developer.apple.com/documentation',
+      url
+    )
   }
 
   async getContainerSymbol(path: string): Promise<SymbolData> {
@@ -160,7 +180,10 @@ export class AppleDevDocsClient {
 
     console.log('cleanPath', cleanPath)
     console.log('url', url)
-    return await this.makeRequest<SymbolData>(url)
+    return await this.makeRequest<SymbolData>(
+      'https://apple.github.io/container/documentation',
+      url
+    )
   }
 
   async getContainerizationSymbol(path: string): Promise<SymbolData> {
@@ -170,7 +193,10 @@ export class AppleDevDocsClient {
 
     console.log('cleanPath', cleanPath)
     console.log('url', url)
-    return await this.makeRequest<SymbolData>(url)
+    return await this.makeRequest<SymbolData>(
+      'https://apple.github.io/containerization/documentation',
+      url
+    )
   }
 
   // NEW: Search across all frameworks
