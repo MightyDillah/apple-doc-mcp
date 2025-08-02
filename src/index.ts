@@ -465,7 +465,7 @@ class AppleDevDocsMcpServer {
       const platforms = this.client.formatPlatforms(data.metadata?.platforms)
       const description = this.client.extractText(data.abstract)
 
-      let content = [
+      const content = [
         `# ${title}\n`,
         `**Type:** ${kind}`,
         `**Platforms:** ${platforms}\n`,
@@ -621,7 +621,7 @@ class AppleDevDocsMcpServer {
       const platforms = this.client.formatPlatforms(data.metadata?.platforms)
       const description = this.client.extractText(data.abstract)
 
-      let content = [
+      const content = [
         `# ${title}\n`,
         `**Type:** ${kind}`,
         `**Platforms:** ${platforms}`,
@@ -698,7 +698,7 @@ class AppleDevDocsMcpServer {
       const platforms = this.client.formatPlatforms(data.metadata?.platforms)
       const description = this.client.extractText(data.abstract)
 
-      let content = [
+      const content = [
         `# ${title}\n`,
         `**Type:** ${kind}`,
         `**Platforms:** ${platforms}`,
