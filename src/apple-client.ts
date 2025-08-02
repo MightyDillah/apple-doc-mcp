@@ -1,9 +1,9 @@
 import axios from 'axios'
 
 const BASE_URL = 'https://developer.apple.com/tutorials/data'
-const CONTAINER_BASE_URL = 'https://apple.github.io/container/data'
+const CONTAINER_BASE_URL = 'https://apple.github.io/container/data/documentation'
 const CONTAINERIZATION_BASE_URL =
-  'https://apple.github.io/containerization/data'
+  'https://apple.github.io/containerization/data/documentation'
 
 const HEADERS = {
   'User-Agent':
@@ -146,7 +146,7 @@ export class AppleDevDocsClient {
   }
 
   async getContainerFramework(frameworkName: string): Promise<FrameworkData> {
-    const url = `${CONTAINER_BASE_URL}/documentation/${frameworkName}.json`
+    const url = `${CONTAINER_BASE_URL}/documentation/${frameworkName.toLowerCase()}.json`
     return await this.makeRequest<FrameworkData>(
       'https://apple.github.io/container/documentation',
       url
@@ -156,7 +156,7 @@ export class AppleDevDocsClient {
   async getContainerizationFramework(
     frameworkName: string
   ): Promise<FrameworkData> {
-    const url = `${CONTAINERIZATION_BASE_URL}/documentation/${frameworkName}.json`
+    const url = `${CONTAINERIZATION_BASE_URL}/documentation/${frameworkName.toLowerCase()}.json`
     return await this.makeRequest<FrameworkData>(
       'https://apple.github.io/containerization/documentation',
       url
@@ -175,7 +175,7 @@ export class AppleDevDocsClient {
 
   async getContainerSymbol(path: string): Promise<SymbolData> {
     // Remove leading slash if present
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path
+    const cleanPath = (path.startsWith('/') ? path.slice(1) : path).toLowerCase()
     const url = `${CONTAINER_BASE_URL}/${cleanPath}.json`
 
     console.log('cleanPath', cleanPath)
@@ -188,7 +188,7 @@ export class AppleDevDocsClient {
 
   async getContainerizationSymbol(path: string): Promise<SymbolData> {
     // Remove leading slash if present
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path
+    const cleanPath = (path.startsWith('/') ? path.slice(1) : path).toLowerCase()
     const url = `${CONTAINERIZATION_BASE_URL}/${cleanPath}.json`
 
     console.log('cleanPath', cleanPath)
