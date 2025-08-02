@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 
-import { Server } from "@modelcontextprotocol/sdk/server/index";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
+  CallToolResult,
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
-} from "@modelcontextprotocol/sdk/types";
+} from "@modelcontextprotocol/sdk/types.js";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { AppleDevDocsClient, SearchResult, Technology } from "./lib";
+import type { SearchResult, Technology } from "./lib/index.js";
+import { AppleDevDocsClient } from "./lib/index.js";
 
 const execAsync = promisify(exec);
 
@@ -40,13 +42,6 @@ const ERROR_MESSAGES = {
 } as const;
 
 // Types
-interface McpResponse {
-  content: Array<{
-    type: "text";
-    text: string;
-  }>;
-}
-
 interface ToolArguments {
   [key: string]: unknown;
 }
@@ -291,10 +286,10 @@ class AppleDevDocsMcpServer {
   private async handleToolCall(
     toolName: string,
     args: ToolArguments,
-  ): Promise<McpResponse> {
+  ): Promise<CallToolResult> {
     const handlers: Record<
       string,
-      (args: ToolArguments) => Promise<McpResponse>
+      (args: ToolArguments) => Promise<CallToolResult>
     > = {
       list_technologies: () => this.handleListTechnologies(),
       list_container_technologies: () => this.handleListContainerTechnologies(),
@@ -329,7 +324,7 @@ class AppleDevDocsMcpServer {
   }
 
   // Technology Listing Handlers
-  private async handleListTechnologies(): Promise<McpResponse> {
+  private async handleListTechnologies(): Promise<CallToolResult> {
     const technologies = await this.client.getTechnologies();
     const { frameworks, others } = this.categorizeTechnologies(technologies);
 
@@ -345,7 +340,7 @@ class AppleDevDocsMcpServer {
     return this.createTextResponse(content);
   }
 
-  private async handleListContainerTechnologies(): Promise<McpResponse> {
+  private async handleListContainerTechnologies(): Promise<CallToolResult> {
     try {
       const technologies = await this.client.getContainerTechnologies();
       const { frameworks, others } = this.categorizeTechnologies(technologies);
@@ -371,7 +366,7 @@ class AppleDevDocsMcpServer {
     }
   }
 
-  private async handleListContainerizationTechnologies(): Promise<McpResponse> {
+  private async handleListContainerizationTechnologies(): Promise<CallToolResult> {
     try {
       const technologies = await this.client.getContainerizationTechnologies();
       const { frameworks, others } = this.categorizeTechnologies(technologies);
@@ -400,7 +395,7 @@ class AppleDevDocsMcpServer {
   // Documentation Handlers
   private async handleGetDocumentation(
     args: DocumentationArguments,
-  ): Promise<McpResponse> {
+  ): Promise<CallToolResult> {
     try {
       const data = await this.client.getSymbol(args.path);
       return this.createDocumentationResponse(data, "Symbol");
@@ -415,7 +410,7 @@ class AppleDevDocsMcpServer {
 
   private async handleGetContainerDocumentation(
     args: DocumentationArguments,
-  ): Promise<McpResponse> {
+  ): Promise<CallToolResult> {
     try {
       const data = await this.client.getContainerSymbol(args.path);
       return this.createDocumentationResponse(
@@ -440,7 +435,7 @@ class AppleDevDocsMcpServer {
 
   private async handleGetContainerizationDocumentation(
     args: DocumentationArguments,
-  ): Promise<McpResponse> {
+  ): Promise<CallToolResult> {
     try {
       const data = await this.client.getContainerizationSymbol(args.path);
       return this.createDocumentationResponse(
@@ -466,7 +461,7 @@ class AppleDevDocsMcpServer {
   // Search Handlers
   private async handleSearchSymbols(
     args: SearchArguments,
-  ): Promise<McpResponse> {
+  ): Promise<CallToolResult> {
     const {
       query,
       framework,
@@ -498,7 +493,7 @@ class AppleDevDocsMcpServer {
 
   private async handleSearchContainerSymbols(
     args: SearchArguments,
-  ): Promise<McpResponse> {
+  ): Promise<CallToolResult> {
     const {
       query,
       framework,
@@ -541,7 +536,7 @@ class AppleDevDocsMcpServer {
 
   private async handleSearchContainerizationSymbols(
     args: SearchArguments,
-  ): Promise<McpResponse> {
+  ): Promise<CallToolResult> {
     const {
       query,
       framework,
@@ -583,7 +578,7 @@ class AppleDevDocsMcpServer {
   }
 
   // Git Update Handler
-  private async handleCheckUpdates(): Promise<McpResponse> {
+  private async handleCheckUpdates(): Promise<CallToolResult> {
     try {
       const gitInfo = await this.getGitInfo();
       const content = this.formatGitStatus(gitInfo);
@@ -651,7 +646,7 @@ class AppleDevDocsMcpServer {
     data: any,
     defaultTitle: string,
     source?: string,
-  ): McpResponse {
+  ): CallToolResult {
     const title = data.metadata?.title || defaultTitle;
     const kind = data.metadata?.symbolKind || "Unknown";
     const platforms = this.client.formatPlatforms(data.metadata?.platforms);
@@ -722,7 +717,7 @@ class AppleDevDocsMcpServer {
   private async handleTechnologyFallback(
     frameworkName: string,
     originalPath: string,
-  ): Promise<McpResponse> {
+  ): Promise<CallToolResult> {
     try {
       const data = await this.client.getFramework(frameworkName);
       const title = data.metadata?.title || frameworkName;
@@ -754,7 +749,7 @@ class AppleDevDocsMcpServer {
     }
   }
 
-  private createSymbolNotFoundResponse(path: string): McpResponse {
+  private createSymbolNotFoundResponse(path: string): CallToolResult {
     const content = [
       `# ❌ Symbol Not Found: ${path}\n`,
       "The requested symbol could not be located in Apple's documentation.",
@@ -783,7 +778,7 @@ class AppleDevDocsMcpServer {
       docCommand: string;
       sourceType?: string;
     },
-  ): McpResponse {
+  ): CallToolResult {
     const { symbolType, platform, scope, docCommand, sourceType } = options;
 
     const header = [
@@ -826,7 +821,7 @@ class AppleDevDocsMcpServer {
     ]);
   }
 
-  private createNoResultsResponse(header: string): McpResponse {
+  private createNoResultsResponse(header: string): CallToolResult {
     const content = [
       header,
       "## No Results Found\n",
@@ -843,7 +838,7 @@ class AppleDevDocsMcpServer {
     sourceType: string,
     searchCommand: string,
     listCommand: string,
-  ): McpResponse {
+  ): CallToolResult {
     const content = [
       `# ⚠️ ${sourceType} Global Search Not Supported\n`,
       `Global search across all ${sourceType} frameworks is not yet implemented.`,
@@ -858,7 +853,7 @@ class AppleDevDocsMcpServer {
   private createSearchFailedResponse(
     sourceType: string,
     error: unknown,
-  ): McpResponse {
+  ): CallToolResult {
     return this.createErrorResponse(
       `❌ ${sourceType} Search Failed`,
       `Unable to search Apple ${sourceType} documentation.`,
@@ -960,7 +955,7 @@ class AppleDevDocsMcpServer {
       : text;
   }
 
-  private createTextResponse(text: string): McpResponse {
+  private createTextResponse(text: string): CallToolResult {
     return {
       content: [
         {
@@ -977,7 +972,7 @@ class AppleDevDocsMcpServer {
     error: unknown,
     note?: string,
     additionalInfo?: string,
-  ): McpResponse {
+  ): CallToolResult {
     const content = [
       `# ${title}\n`,
       message,
