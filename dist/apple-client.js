@@ -1,5 +1,7 @@
 import axios from 'axios';
 const BASE_URL = 'https://developer.apple.com/tutorials/data';
+const CONTAINER_BASE_URL = 'https://apple.github.io/container/data';
+const CONTAINERIZATION_BASE_URL = 'https://apple.github.io/containerization/data';
 const HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
     'Referer': 'https://developer.apple.com/documentation',
@@ -36,14 +38,44 @@ export class AppleDevDocsClient {
         const data = await this.makeRequest(url);
         return data.references || {};
     }
+    async getContainerTechnologies() {
+        const url = `${CONTAINER_BASE_URL}/documentation.json`;
+        const data = await this.makeRequest(url);
+        return data.references || {};
+    }
+    async getContainerizationTechnologies() {
+        const url = `${CONTAINERIZATION_BASE_URL}/documentation.json`;
+        const data = await this.makeRequest(url);
+        return data.references || {};
+    }
     async getFramework(frameworkName) {
         const url = `${BASE_URL}/documentation/${frameworkName}.json`;
+        return await this.makeRequest(url);
+    }
+    async getContainerFramework(frameworkName) {
+        const url = `${CONTAINER_BASE_URL}/documentation/${frameworkName}.json`;
+        return await this.makeRequest(url);
+    }
+    async getContainerizationFramework(frameworkName) {
+        const url = `${CONTAINERIZATION_BASE_URL}/documentation/${frameworkName}.json`;
         return await this.makeRequest(url);
     }
     async getSymbol(path) {
         // Remove leading slash if present
         const cleanPath = path.startsWith('/') ? path.slice(1) : path;
         const url = `${BASE_URL}/${cleanPath}.json`;
+        return await this.makeRequest(url);
+    }
+    async getContainerSymbol(path) {
+        // Remove leading slash if present
+        const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+        const url = `${CONTAINER_BASE_URL}/${cleanPath}.json`;
+        return await this.makeRequest(url);
+    }
+    async getContainerizationSymbol(path) {
+        // Remove leading slash if present
+        const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+        const url = `${CONTAINERIZATION_BASE_URL}/${cleanPath}.json`;
         return await this.makeRequest(url);
     }
     // NEW: Search across all frameworks
@@ -102,6 +134,60 @@ export class AppleDevDocsClient {
         }
         catch (error) {
             throw new Error(`Framework search failed for ${frameworkName}: ${error}`);
+        }
+    }
+    // NEW: Search within Container frameworks
+    async searchContainerFramework(frameworkName, query, options = {}) {
+        const { maxResults = 20 } = options;
+        const results = [];
+        try {
+            const framework = await this.getContainerFramework(frameworkName);
+            const searchPattern = this.createSearchPattern(query);
+            Object.entries(framework.references).forEach(([id, ref]) => {
+                if (results.length >= maxResults)
+                    return;
+                if (this.matchesSearch(ref, searchPattern, options)) {
+                    results.push({
+                        title: ref.title,
+                        description: this.extractText(ref.abstract || []),
+                        path: ref.url,
+                        framework: frameworkName,
+                        symbolKind: ref.kind,
+                        platforms: this.formatPlatforms(ref.platforms || framework.metadata?.platforms)
+                    });
+                }
+            });
+            return results.sort((a, b) => this.scoreMatch(a.title, query) - this.scoreMatch(b.title, query));
+        }
+        catch (error) {
+            throw new Error(`Container framework search failed for ${frameworkName}: ${error}`);
+        }
+    }
+    // NEW: Search within Containerization frameworks
+    async searchContainerizationFramework(frameworkName, query, options = {}) {
+        const { maxResults = 20 } = options;
+        const results = [];
+        try {
+            const framework = await this.getContainerizationFramework(frameworkName);
+            const searchPattern = this.createSearchPattern(query);
+            Object.entries(framework.references).forEach(([id, ref]) => {
+                if (results.length >= maxResults)
+                    return;
+                if (this.matchesSearch(ref, searchPattern, options)) {
+                    results.push({
+                        title: ref.title,
+                        description: this.extractText(ref.abstract || []),
+                        path: ref.url,
+                        framework: frameworkName,
+                        symbolKind: ref.kind,
+                        platforms: this.formatPlatforms(ref.platforms || framework.metadata?.platforms)
+                    });
+                }
+            });
+            return results.sort((a, b) => this.scoreMatch(a.title, query) - this.scoreMatch(b.title, query));
+        }
+        catch (error) {
+            throw new Error(`Containerization framework search failed for ${frameworkName}: ${error}`);
         }
     }
     // Helper: Create search pattern (supports wildcards)

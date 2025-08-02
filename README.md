@@ -4,6 +4,18 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
 
 ## 📋 Changelog
 
+### 1.0.2 Update (Container & Containerization Support)
+- **📦 Apple Container Documentation**: Added full support for Apple Container documentation with 3 new tools:
+  - `list_container_technologies` - Browse all Apple Container frameworks
+  - `get_container_documentation` - Get Container symbol or framework docs
+  - `search_container_symbols` - Search Container frameworks with wildcards
+- **🔄 Apple Containerization Documentation**: Added full support for Apple Containerization documentation with 3 new tools:
+  - `list_containerization_technologies` - Browse all Apple Containerization frameworks  
+  - `get_containerization_documentation` - Get Containerization symbol or framework docs
+  - `search_containerization_symbols` - Search Containerization frameworks with wildcards
+- **🛡️ Enhanced Error Handling**: Graceful fallbacks when Container/Containerization documentation sources are unavailable
+- **📈 Tool Expansion**: Expanded from 4 tools to 10 total tools for comprehensive Apple documentation coverage
+
 ### 1.0.1 Update
 - **🎯 Intelligent Fallback System**: When searching for frameworks instead of symbols (e.g., "SwiftUI"), the server now provides helpful framework information and guidance on correct usage
 - **🔧 Tool Consolidation**: Streamlined from 4 tools to 4 focused tools:
@@ -25,6 +37,8 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
 - **⚡ Real-time Data**: Always up-to-date with Apple's latest documentation
 - **🔄 Auto-Update Alerts**: Automatic notifications when repository updates are available
 - **🧠 AI-Optimized**: Clean markdown output perfect for AI assistants
+- **📦 Container Support**: Full access to Apple Container documentation and frameworks
+- **🔄 Containerization Support**: Complete Apple Containerization documentation integration
 
 ## 📦 Installation
 
@@ -120,6 +134,8 @@ Once configured, just talk naturally to your AI assistant. Here are examples:
 "Use apple-doc-mcp to list all current Apple frameworks"
 "Get the latest available Apple technologies from Apple's docs"
 "Search Apple documentation for all available frameworks"
+"List Apple Container technologies and frameworks"
+"Browse Apple Containerization documentation frameworks"
 ```
 
 ### Explore a Framework
@@ -127,6 +143,8 @@ Once configured, just talk naturally to your AI assistant. Here are examples:
 "Use apple-doc-mcp to browse SwiftUI framework structure"
 "Get current UIKit topics from Apple documentation"
 "Search Apple docs for Foundation framework details"
+"Explore Apple Container framework details"
+"Get Apple Containerization framework structure"
 ```
 
 ### Search for Specific APIs
@@ -135,6 +153,8 @@ Once configured, just talk naturally to your AI assistant. Here are examples:
 "Use apple-doc-mcp to find RPBroadcast* classes in ReplayKit"
 "Look up current *View* symbols across Apple frameworks"
 "Find all *Controller classes in UIKit using Apple docs"
+"Search Apple Container docs for Image* APIs"
+"Find Archive* symbols in Apple Containerization docs"
 ```
 
 ### Get Detailed Documentation
@@ -142,16 +162,20 @@ Once configured, just talk naturally to your AI assistant. Here are examples:
 "Get the latest SwiftUI View protocol docs from Apple"
 "Use apple-doc-mcp to look up UIViewController documentation"
 "Search Apple's current docs for NSURLSession details"
+"Get Apple Container documentation for ContainerImagesService"
+"Look up ContainerizationArchive docs from Apple"
 ```
 
 The AI will automatically use the MCP tools to fetch current Apple documentation and provide comprehensive answers.
 
 ## 🛠️ Available Tools
 
-### `list_technologies`
+### Core Apple Developer Documentation
+
+#### `list_technologies`
 Browse all available Apple frameworks and technologies.
 
-### `get_documentation`
+#### `get_documentation`
 Get detailed documentation for symbols or frameworks (automatically detects type).
 - `path` (required): Documentation path (e.g., "documentation/SwiftUI/View") or framework name (e.g., "SwiftUI")
 
@@ -162,7 +186,7 @@ Get detailed documentation for symbols or frameworks (automatically detects type
 {"path": "Foundation"}
 ```
 
-### `search_symbols`
+#### `search_symbols`
 Search for symbols across Apple frameworks with advanced filtering.
 - `query` (required): Search query with wildcard support
 - `framework` (optional): Search within specific framework
@@ -177,7 +201,67 @@ Search for symbols across Apple frameworks with advanced filtering.
 {"query": "*View*", "platform": "iOS", "maxResults": 5}
 ```
 
-### `check_updates`
+### Apple Container Documentation
+
+#### `list_container_technologies`
+Browse all available Apple Container frameworks and technologies.
+
+#### `get_container_documentation`
+Get detailed documentation for Apple Container symbols or frameworks.
+- `path` (required): Container documentation path (e.g., "documentation/ContainerImagesService") or framework name
+
+**Examples**:
+```json
+{"path": "ContainerImagesService"}
+{"path": "documentation/ContainerImagesService/ImageAPI"}
+```
+
+#### `search_container_symbols`
+Search for symbols across Apple Container frameworks with advanced filtering.
+- `query` (required): Search query with wildcard support
+- `framework` (optional): Search within specific Container framework
+- `symbolType` (optional): Filter by symbol type (class, protocol, struct, etc.)
+- `platform` (optional): Filter by platform (iOS, macOS, etc.)
+- `maxResults` (optional): Maximum results (default: 20)
+
+**Examples**:
+```json
+{"query": "Container*"}
+{"query": "*Service", "framework": "ContainerImagesService"}
+```
+
+### Apple Containerization Documentation
+
+#### `list_containerization_technologies`
+Browse all available Apple Containerization frameworks and technologies.
+
+#### `get_containerization_documentation`
+Get detailed documentation for Apple Containerization symbols or frameworks.
+- `path` (required): Containerization documentation path (e.g., "documentation/ContainerizationArchive") or framework name
+
+**Examples**:
+```json
+{"path": "ContainerizationArchive"}
+{"path": "documentation/ContainerizationArchive/ArchiveAPI"}
+```
+
+#### `search_containerization_symbols`
+Search for symbols across Apple Containerization frameworks with advanced filtering.
+- `query` (required): Search query with wildcard support
+- `framework` (optional): Search within specific Containerization framework
+- `symbolType` (optional): Filter by symbol type (class, protocol, struct, etc.)
+- `platform` (optional): Filter by platform (iOS, macOS, etc.)
+- `maxResults` (optional): Maximum results (default: 20)
+
+**Examples**:
+```json
+{"query": "Archive*"}
+{"query": "*Service", "framework": "ContainerizationArchive"}
+```
+
+### Utility Tools
+
+#### `check_updates`
 Check for available updates from the git repository.
 - No parameters required
 - Shows current branch status, available updates, and update instructions

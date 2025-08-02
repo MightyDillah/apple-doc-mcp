@@ -35,6 +35,24 @@ class AppleDevDocsMcpServer {
                         },
                     },
                     {
+                        name: 'list_container_technologies',
+                        description: 'List all available Apple Container technologies/frameworks',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {},
+                            required: [],
+                        },
+                    },
+                    {
+                        name: 'list_containerization_technologies',
+                        description: 'List all available Apple Containerization technologies/frameworks',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {},
+                            required: [],
+                        },
+                    },
+                    {
                         name: 'get_documentation',
                         description: 'Get detailed documentation for any symbol, class, struct, or framework (automatically detects and handles both)',
                         inputSchema: {
@@ -43,6 +61,34 @@ class AppleDevDocsMcpServer {
                                 path: {
                                     type: 'string',
                                     description: 'Documentation path (e.g., "documentation/SwiftUI/View") or framework name (e.g., "SwiftUI")',
+                                },
+                            },
+                            required: ['path'],
+                        },
+                    },
+                    {
+                        name: 'get_container_documentation',
+                        description: 'Get detailed documentation for Apple Container symbols, classes, structs, or frameworks',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                path: {
+                                    type: 'string',
+                                    description: 'Container documentation path (e.g., "documentation/ContainerImagesService") or framework name',
+                                },
+                            },
+                            required: ['path'],
+                        },
+                    },
+                    {
+                        name: 'get_containerization_documentation',
+                        description: 'Get detailed documentation for Apple Containerization symbols, classes, structs, or frameworks',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                path: {
+                                    type: 'string',
+                                    description: 'Containerization documentation path (e.g., "documentation/ContainerizationArchive") or framework name',
                                 },
                             },
                             required: ['path'],
@@ -79,6 +125,66 @@ class AppleDevDocsMcpServer {
                         },
                     },
                     {
+                        name: 'search_container_symbols',
+                        description: 'Search for symbols across Apple Container frameworks (supports wildcards)',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                query: {
+                                    type: 'string',
+                                    description: 'Search query (supports wildcards: * and ?)',
+                                },
+                                framework: {
+                                    type: 'string',
+                                    description: 'Optional: Search within specific Container framework only',
+                                },
+                                symbolType: {
+                                    type: 'string',
+                                    description: 'Optional: Filter by symbol type (class, protocol, struct, etc.)',
+                                },
+                                platform: {
+                                    type: 'string',
+                                    description: 'Optional: Filter by platform (iOS, macOS, etc.)',
+                                },
+                                maxResults: {
+                                    type: 'number',
+                                    description: 'Optional: Maximum number of results (default: 20)',
+                                },
+                            },
+                            required: ['query'],
+                        },
+                    },
+                    {
+                        name: 'search_containerization_symbols',
+                        description: 'Search for symbols across Apple Containerization frameworks (supports wildcards)',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                query: {
+                                    type: 'string',
+                                    description: 'Search query (supports wildcards: * and ?)',
+                                },
+                                framework: {
+                                    type: 'string',
+                                    description: 'Optional: Search within specific Containerization framework only',
+                                },
+                                symbolType: {
+                                    type: 'string',
+                                    description: 'Optional: Filter by symbol type (class, protocol, struct, etc.)',
+                                },
+                                platform: {
+                                    type: 'string',
+                                    description: 'Optional: Filter by platform (iOS, macOS, etc.)',
+                                },
+                                maxResults: {
+                                    type: 'number',
+                                    description: 'Optional: Maximum number of results (default: 20)',
+                                },
+                            },
+                            required: ['query'],
+                        },
+                    },
+                    {
                         name: 'check_updates',
                         description: 'Check for available updates from the git repository',
                         inputSchema: {
@@ -95,10 +201,22 @@ class AppleDevDocsMcpServer {
                 switch (request.params.name) {
                     case 'list_technologies':
                         return await this.handleListTechnologies();
+                    case 'list_container_technologies':
+                        return await this.handleListContainerTechnologies();
+                    case 'list_containerization_technologies':
+                        return await this.handleListContainerizationTechnologies();
                     case 'get_documentation':
                         return await this.handleGetDocumentation(request.params.arguments);
+                    case 'get_container_documentation':
+                        return await this.handleGetContainerDocumentation(request.params.arguments);
+                    case 'get_containerization_documentation':
+                        return await this.handleGetContainerizationDocumentation(request.params.arguments);
                     case 'search_symbols':
                         return await this.handleSearchSymbols(request.params.arguments);
+                    case 'search_container_symbols':
+                        return await this.handleSearchContainerSymbols(request.params.arguments);
+                    case 'search_containerization_symbols':
+                        return await this.handleSearchContainerizationSymbols(request.params.arguments);
                     case 'check_updates':
                         return await this.handleCheckUpdates();
                     default:
@@ -143,6 +261,110 @@ class AppleDevDocsMcpServer {
                 },
             ],
         };
+    }
+    async handleListContainerTechnologies() {
+        try {
+            const technologies = await this.client.getContainerTechnologies();
+            // Group technologies by type/category
+            const frameworks = [];
+            const others = [];
+            Object.values(technologies).forEach((tech) => {
+                if (tech.kind === 'symbol' && tech.role === 'collection') {
+                    const description = this.client.extractText(tech.abstract);
+                    const item = { name: tech.title, description };
+                    frameworks.push(item);
+                }
+                else {
+                    const description = this.client.extractText(tech.abstract);
+                    others.push({ name: tech.title, description });
+                }
+            });
+            const content = [
+                '# Apple Container Technologies\n',
+                '## Container Frameworks\n',
+                ...frameworks.slice(0, 15).map(f => `• **${f.name}** - ${f.description}`),
+                '\n## Additional Container Technologies\n',
+                ...others.slice(0, 10).map(f => `• **${f.name}** - ${f.description}`),
+                '\n*Use `get_container_documentation <path>` to explore any Container framework or symbol*',
+                `\n\n**Total: ${frameworks.length + others.length} Container technologies available**`
+            ].join('\n');
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: content,
+                    },
+                ],
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: [
+                            '# ❌ Apple Container Technologies Unavailable\n',
+                            'Unable to fetch Apple Container documentation at this time.',
+                            '\n**Error:** ' + (error instanceof Error ? error.message : String(error)),
+                            '\n**Note:** Apple Container documentation may not be publicly available yet.',
+                            '\nTry using the standard `list_technologies` for Apple Developer documentation.'
+                        ].join('\n'),
+                    },
+                ],
+            };
+        }
+    }
+    async handleListContainerizationTechnologies() {
+        try {
+            const technologies = await this.client.getContainerizationTechnologies();
+            // Group technologies by type/category
+            const frameworks = [];
+            const others = [];
+            Object.values(technologies).forEach((tech) => {
+                if (tech.kind === 'symbol' && tech.role === 'collection') {
+                    const description = this.client.extractText(tech.abstract);
+                    const item = { name: tech.title, description };
+                    frameworks.push(item);
+                }
+                else {
+                    const description = this.client.extractText(tech.abstract);
+                    others.push({ name: tech.title, description });
+                }
+            });
+            const content = [
+                '# Apple Containerization Technologies\n',
+                '## Containerization Frameworks\n',
+                ...frameworks.slice(0, 15).map(f => `• **${f.name}** - ${f.description}`),
+                '\n## Additional Containerization Technologies\n',
+                ...others.slice(0, 10).map(f => `• **${f.name}** - ${f.description}`),
+                '\n*Use `get_containerization_documentation <path>` to explore any Containerization framework or symbol*',
+                `\n\n**Total: ${frameworks.length + others.length} Containerization technologies available**`
+            ].join('\n');
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: content,
+                    },
+                ],
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: [
+                            '# ❌ Apple Containerization Technologies Unavailable\n',
+                            'Unable to fetch Apple Containerization documentation at this time.',
+                            '\n**Error:** ' + (error instanceof Error ? error.message : String(error)),
+                            '\n**Note:** Apple Containerization documentation may not be publicly available yet.',
+                            '\nTry using the standard `list_technologies` for Apple Developer documentation.'
+                        ].join('\n'),
+                    },
+                ],
+            };
+        }
     }
     async handleGetDocumentation(args) {
         const { path } = args;
@@ -277,6 +499,134 @@ class AppleDevDocsMcpServer {
             };
         }
     }
+    async handleGetContainerDocumentation(args) {
+        const { path } = args;
+        try {
+            const data = await this.client.getContainerSymbol(path);
+            const title = data.metadata?.title || 'Container Symbol';
+            const kind = data.metadata?.symbolKind || 'Unknown';
+            const platforms = this.client.formatPlatforms(data.metadata?.platforms);
+            const description = this.client.extractText(data.abstract);
+            let content = [
+                `# ${title}\n`,
+                `**Type:** ${kind}`,
+                `**Platforms:** ${platforms}`,
+                `**Source:** Apple Container Documentation\n`,
+                '## Overview',
+                description
+            ];
+            // Add topic sections if available
+            if (data.topicSections && data.topicSections.length > 0) {
+                content.push('\n## API Reference\n');
+                data.topicSections.forEach(section => {
+                    content.push(`### ${section.title}`);
+                    if (section.identifiers && section.identifiers.length > 0) {
+                        section.identifiers.slice(0, 5).forEach(id => {
+                            const ref = data.references?.[id];
+                            if (ref) {
+                                const refDesc = this.client.extractText(ref.abstract || []);
+                                content.push(`• **${ref.title}** - ${refDesc.substring(0, 100)}${refDesc.length > 100 ? '...' : ''}`);
+                            }
+                        });
+                        if (section.identifiers.length > 5) {
+                            content.push(`*... and ${section.identifiers.length - 5} more items*`);
+                        }
+                    }
+                    content.push('');
+                });
+            }
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: content.join('\n'),
+                    },
+                ],
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: [
+                            `# ❌ Container Symbol Not Found: ${path}\n`,
+                            `The requested Container symbol could not be located in Apple's Container documentation.`,
+                            `\n**Error:** ${error instanceof Error ? error.message : String(error)}`,
+                            `\n## Recommended Actions`,
+                            `• **List Container frameworks:** Use \`list_container_technologies\` to see available frameworks`,
+                            `• **Search Container symbols:** Use \`search_container_symbols <query>\` to find specific symbols`,
+                            `• **Try standard docs:** Use \`get_documentation\` for Apple Developer documentation`
+                        ].join('\n'),
+                    },
+                ],
+            };
+        }
+    }
+    async handleGetContainerizationDocumentation(args) {
+        const { path } = args;
+        try {
+            const data = await this.client.getContainerizationSymbol(path);
+            const title = data.metadata?.title || 'Containerization Symbol';
+            const kind = data.metadata?.symbolKind || 'Unknown';
+            const platforms = this.client.formatPlatforms(data.metadata?.platforms);
+            const description = this.client.extractText(data.abstract);
+            let content = [
+                `# ${title}\n`,
+                `**Type:** ${kind}`,
+                `**Platforms:** ${platforms}`,
+                `**Source:** Apple Containerization Documentation\n`,
+                '## Overview',
+                description
+            ];
+            // Add topic sections if available
+            if (data.topicSections && data.topicSections.length > 0) {
+                content.push('\n## API Reference\n');
+                data.topicSections.forEach(section => {
+                    content.push(`### ${section.title}`);
+                    if (section.identifiers && section.identifiers.length > 0) {
+                        section.identifiers.slice(0, 5).forEach(id => {
+                            const ref = data.references?.[id];
+                            if (ref) {
+                                const refDesc = this.client.extractText(ref.abstract || []);
+                                content.push(`• **${ref.title}** - ${refDesc.substring(0, 100)}${refDesc.length > 100 ? '...' : ''}`);
+                            }
+                        });
+                        if (section.identifiers.length > 5) {
+                            content.push(`*... and ${section.identifiers.length - 5} more items*`);
+                        }
+                    }
+                    content.push('');
+                });
+            }
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: content.join('\n'),
+                    },
+                ],
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: [
+                            `# ❌ Containerization Symbol Not Found: ${path}\n`,
+                            `The requested Containerization symbol could not be located in Apple's Containerization documentation.`,
+                            `\n**Error:** ${error instanceof Error ? error.message : String(error)}`,
+                            `\n## Recommended Actions`,
+                            `• **List Containerization frameworks:** Use \`list_containerization_technologies\` to see available frameworks`,
+                            `• **Search Containerization symbols:** Use \`search_containerization_symbols <query>\` to find specific symbols`,
+                            `• **Try standard docs:** Use \`get_documentation\` for Apple Developer documentation`
+                        ].join('\n'),
+                    },
+                ],
+            };
+        }
+    }
     async handleSearchSymbols(args) {
         const { query, framework, symbolType, platform, maxResults = 20 } = args;
         let results;
@@ -334,6 +684,176 @@ class AppleDevDocsMcpServer {
                 },
             ],
         };
+    }
+    async handleSearchContainerSymbols(args) {
+        const { query, framework, symbolType, platform, maxResults = 20 } = args;
+        try {
+            let results = [];
+            if (framework) {
+                // Search within specific Container framework
+                results = await this.client.searchContainerFramework(framework, query, {
+                    symbolType,
+                    platform,
+                    maxResults
+                });
+            }
+            else {
+                // Global search would need implementation in client
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: [
+                                `# ⚠️ Container Global Search Not Supported\n`,
+                                `Global search across all Container frameworks is not yet implemented.`,
+                                `\n**Recommendation:** Specify a framework name for targeted search.`,
+                                `\n**Example:** \`search_container_symbols "Image*" --framework "ContainerImages"\``,
+                                `\n**Available:** Use \`list_container_technologies\` to see available frameworks`
+                            ].join('\n'),
+                        },
+                    ],
+                };
+            }
+            const content = [
+                `# Container Search Results for "${query}"\n`,
+                framework ? `**Framework:** ${framework}` : '**Scope:** All Container frameworks',
+                symbolType ? `**Symbol Type:** ${symbolType}` : '',
+                platform ? `**Platform:** ${platform}` : '',
+                `**Found:** ${results.length} results\n`
+            ].filter(Boolean);
+            if (results.length > 0) {
+                content.push('## Results\n');
+                results.forEach((result, index) => {
+                    content.push(`### ${index + 1}. ${result.title}`);
+                    content.push(`**Framework:** ${result.framework}${result.symbolKind ? ` | **Type:** ${result.symbolKind}` : ''}`);
+                    if (result.platforms) {
+                        content.push(`**Platforms:** ${result.platforms}`);
+                    }
+                    content.push(`**Path:** \`${result.path}\``);
+                    if (result.description) {
+                        content.push(`${result.description.substring(0, 150)}${result.description.length > 150 ? '...' : ''}`);
+                    }
+                    content.push('');
+                });
+                content.push(`*Use \`get_container_documentation\` with any path above to see detailed documentation*`);
+            }
+            else {
+                content.push('## No Results Found\n');
+                content.push('Try:');
+                content.push('• Broader search terms');
+                content.push('• Wildcard patterns (e.g., "Container*", "*Service*")');
+                content.push('• Removing filters');
+            }
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: content.join('\n'),
+                    },
+                ],
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: [
+                            `# ❌ Container Search Failed\n`,
+                            `Unable to search Apple Container documentation.`,
+                            `\n**Error:** ${error instanceof Error ? error.message : String(error)}`,
+                            `\n**Note:** Apple Container documentation may not be publicly available yet.`,
+                            `\nTry using the standard \`search_symbols\` for Apple Developer documentation.`
+                        ].join('\n'),
+                    },
+                ],
+            };
+        }
+    }
+    async handleSearchContainerizationSymbols(args) {
+        const { query, framework, symbolType, platform, maxResults = 20 } = args;
+        try {
+            let results = [];
+            if (framework) {
+                // Search within specific Containerization framework
+                results = await this.client.searchContainerizationFramework(framework, query, {
+                    symbolType,
+                    platform,
+                    maxResults
+                });
+            }
+            else {
+                // Global search would need implementation in client
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: [
+                                `# ⚠️ Containerization Global Search Not Supported\n`,
+                                `Global search across all Containerization frameworks is not yet implemented.`,
+                                `\n**Recommendation:** Specify a framework name for targeted search.`,
+                                `\n**Example:** \`search_containerization_symbols "Archive*" --framework "ContainerizationArchive"\``,
+                                `\n**Available:** Use \`list_containerization_technologies\` to see available frameworks`
+                            ].join('\n'),
+                        },
+                    ],
+                };
+            }
+            const content = [
+                `# Containerization Search Results for "${query}"\n`,
+                framework ? `**Framework:** ${framework}` : '**Scope:** All Containerization frameworks',
+                symbolType ? `**Symbol Type:** ${symbolType}` : '',
+                platform ? `**Platform:** ${platform}` : '',
+                `**Found:** ${results.length} results\n`
+            ].filter(Boolean);
+            if (results.length > 0) {
+                content.push('## Results\n');
+                results.forEach((result, index) => {
+                    content.push(`### ${index + 1}. ${result.title}`);
+                    content.push(`**Framework:** ${result.framework}${result.symbolKind ? ` | **Type:** ${result.symbolKind}` : ''}`);
+                    if (result.platforms) {
+                        content.push(`**Platforms:** ${result.platforms}`);
+                    }
+                    content.push(`**Path:** \`${result.path}\``);
+                    if (result.description) {
+                        content.push(`${result.description.substring(0, 150)}${result.description.length > 150 ? '...' : ''}`);
+                    }
+                    content.push('');
+                });
+                content.push(`*Use \`get_containerization_documentation\` with any path above to see detailed documentation*`);
+            }
+            else {
+                content.push('## No Results Found\n');
+                content.push('Try:');
+                content.push('• Broader search terms');
+                content.push('• Wildcard patterns (e.g., "Archive*", "*Service*")');
+                content.push('• Removing filters');
+            }
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: content.join('\n'),
+                    },
+                ],
+            };
+        }
+        catch (error) {
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: [
+                            `# ❌ Containerization Search Failed\n`,
+                            `Unable to search Apple Containerization documentation.`,
+                            `\n**Error:** ${error instanceof Error ? error.message : String(error)}`,
+                            `\n**Note:** Apple Containerization documentation may not be publicly available yet.`,
+                            `\nTry using the standard \`search_symbols\` for Apple Developer documentation.`
+                        ].join('\n'),
+                    },
+                ],
+            };
+        }
     }
     async handleCheckUpdates() {
         try {
