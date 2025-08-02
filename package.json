@@ -41,6 +41,7 @@
     "start": "node dist/index.js",
     "typecheck": "bunx tsc --noEmit",
     "postinstall": "npm run build",
+    "prepare": "husky",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -50,6 +51,7 @@
     "axios": "1.11.0",
     "eslint": "9.32.0",
     "eslint-plugin-prettier": "5.5.3",
+    "husky": "^9.1.7",
     "jiti": "2.5.1",
     "lint-staged": "16.1.2",
     "neostandard": "0.12.2"
