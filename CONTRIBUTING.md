@@ -22,6 +22,7 @@ Thank you for considering contributing to Apple Doc MCP! 🍎
 ## Making Changes
 
 ### Development Workflow
+
 1. Create a new branch for your feature/fix:
    ```bash
    git checkout -b feature/your-feature-name
@@ -60,6 +61,7 @@ Thank you for considering contributing to Apple Doc MCP! 🍎
 ## Reporting Issues
 
 Before creating an issue:
+
 1. **Search existing issues** to avoid duplicates
 2. **Test with latest version** to ensure it's not already fixed
 3. **Use the issue template** for better context
@@ -76,4 +78,4 @@ By contributing, you agree that your contributions will be licensed under the sa
 
 ---
 
-**Happy coding!** 🚀 
+**Happy coding!** 🚀

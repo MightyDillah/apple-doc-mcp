@@ -16,6 +16,13 @@
     "swiftui",
     "uikit"
   ],
+  "contributors": [
+    {
+      "name": "Jonathan Russ",
+      "email": "jonathan.russ@bluewin.ch",
+      "url": "https://github.com/JonathanXDR"
+    }
+  ],
   "author": "MightyDillah",
   "repository": {
     "type": "git",
@@ -27,19 +34,33 @@
   "homepage": "https://github.com/MightyDillah/apple-doc-mcp#readme",
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
     "start": "node dist/index.js",
+    "typecheck": "bunx tsc --noEmit",
     "postinstall": "npm run build",
+    "prepare": "husky",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.13.2",
-    "axios": "^1.10.0"
+    "@commitlint/cli": "19.8.1",
+    "@commitlint/config-conventional": "19.8.1",
+    "@modelcontextprotocol/sdk": "1.17.1",
+    "axios": "1.11.0",
+    "eslint": "9.32.0",
+    "eslint-plugin-prettier": "5.5.3",
+    "husky": "^9.1.7",
+    "jiti": "2.5.1",
+    "lint-staged": "16.1.2",
+    "neostandard": "0.12.2"
   },
   "devDependencies": {
-    "@types/node": "^24.0.6",
-    "typescript": "^5.8.3"
+    "@types/node": "24.1.0",
+    "typescript": "5.8.3"
   },
   "engines": {
     "node": ">=18"
   }
-} 
+}
