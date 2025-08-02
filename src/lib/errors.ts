@@ -3,10 +3,10 @@ export class AppleDocsError extends Error {
     message: string,
     public readonly operation: string,
     public readonly source?: string,
-    public readonly originalError?: Error
+    public readonly originalError?: Error,
   ) {
-    super(message)
-    this.name = 'AppleDocsError'
+    super(message);
+    this.name = "AppleDocsError";
   }
 }
 
@@ -14,31 +14,31 @@ export class ErrorFactory {
   static httpRequest(url: string, originalError: Error): AppleDocsError {
     return new AppleDocsError(
       `Failed to fetch ${url}`,
-      'HTTP_REQUEST',
+      "HTTP_REQUEST",
       url,
-      originalError
-    )
+      originalError,
+    );
   }
 
   static frameworkSearch(
     frameworkName: string,
     source: string,
-    originalError: Error
+    originalError: Error,
   ): AppleDocsError {
     return new AppleDocsError(
       `Framework search failed for ${frameworkName}`,
-      'FRAMEWORK_SEARCH',
+      "FRAMEWORK_SEARCH",
       source,
-      originalError
-    )
+      originalError,
+    );
   }
 
   static globalSearch(originalError: Error): AppleDocsError {
     return new AppleDocsError(
-      'Global search failed',
-      'GLOBAL_SEARCH',
+      "Global search failed",
+      "GLOBAL_SEARCH",
       undefined,
-      originalError
-    )
+      originalError,
+    );
   }
 }

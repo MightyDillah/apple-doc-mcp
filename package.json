@@ -34,7 +34,12 @@
   "homepage": "https://github.com/MightyDillah/apple-doc-mcp#readme",
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
     "start": "node dist/index.js",
+    "typecheck": "bunx tsc --noEmit",
     "postinstall": "npm run build",
     "prepublishOnly": "npm run build"
   },
@@ -42,14 +47,15 @@
     "@commitlint/cli": "19.8.1",
     "@commitlint/config-conventional": "19.8.1",
     "@modelcontextprotocol/sdk": "1.13.2",
-    "axios": "1.10.0",
+    "axios": "1.11.0",
     "eslint": "9.32.0",
     "eslint-plugin-prettier": "5.5.3",
+    "jiti": "2.5.1",
     "lint-staged": "16.1.2",
     "neostandard": "0.12.2"
   },
   "devDependencies": {
-    "@types/node": "24.0.6",
+    "@types/node": "24.1.0",
     "typescript": "5.8.3"
   },
   "engines": {

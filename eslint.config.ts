@@ -1,5 +1,5 @@
-import type { Linter } from 'eslint'
-import neostandard, { resolveIgnoresFromGitignore } from 'neostandard'
+import type { Linter } from "eslint";
+import neostandard, { resolveIgnoresFromGitignore } from "neostandard";
 
 const config: Linter.Config[] = [
   ...neostandard({
@@ -7,6 +7,6 @@ const config: Linter.Config[] = [
     ts: true,
     ignores: [...resolveIgnoresFromGitignore()],
   }),
-]
+];
 
-export default config
+export default config;
