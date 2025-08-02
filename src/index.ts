@@ -10,7 +10,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { AppleDevDocsClient } from './apple-client.js'
+import { AppleDevDocsClient } from './client'
 
 const execAsync = promisify(exec)
 
