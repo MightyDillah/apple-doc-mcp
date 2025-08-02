@@ -16,6 +16,13 @@
     "swiftui",
     "uikit"
   ],
+  "contributors": [
+    {
+      "name": "Jonathan Russ",
+      "email": "jonathan.russ@bluewin.ch",
+      "url": "https://github.com/JonathanXDR"
+    }
+  ],
   "author": "MightyDillah",
   "repository": {
     "type": "git",
@@ -42,4 +49,4 @@
   "engines": {
     "node": ">=18"
   }
-} 
+}
