@@ -98,6 +98,12 @@ class AppleDevDocsMcpServer {
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
+        if (!request.params.arguments) {
+          throw new McpError(
+            ErrorCode.InvalidParams,
+            `Missing arguments for tool: ${request.params.name}`,
+          );
+        }
         return await this.handleToolCall(
           request.params.name,
           request.params.arguments,
