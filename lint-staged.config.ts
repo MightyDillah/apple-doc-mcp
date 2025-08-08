@@ -5,7 +5,7 @@ const config: Configuration = {
     `prettier --write ${stagedFiles.join(" ")}`,
     `eslint --fix ${stagedFiles.join(" ")}`,
   ],
-  "**/*.{ts,tsx}": () => "bunx tsc --noEmit",
+  "**/*.{ts,tsx}": () => "nr typecheck",
 };
 
 export default config;
