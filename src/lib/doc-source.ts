@@ -1,16 +1,16 @@
-import type { DocSourceConfig } from "./constants";
-import { CONFIG } from "./constants";
-import { ErrorFactory } from "./errors";
-import { ResponseValidator, SearchResultFactory } from "./factories";
-import { DocHttpClient } from "./http-client";
+import type { DocSourceConfig } from "./constants.js";
+import { CONFIG } from "./constants.js";
+import { ErrorFactory } from "./errors.js";
+import { ResponseValidator, SearchResultFactory } from "./factories.js";
+import { DocHttpClient } from "./http-client.js";
 import type {
   FrameworkData,
   SearchOptions,
   SearchResult,
   SymbolData,
   Technology,
-} from "./types";
-import { SearchUtils } from "./utils";
+} from "./types.js";
+import { SearchUtils } from "./utils.js";
 
 interface ApiResponse<T> {
   references?: Record<string, T>;
