@@ -1,6 +1,6 @@
-export { AppleDevDocsClient } from "./client";
-export { CONFIG, DOC_SOURCES } from "./constants";
-export { AppleDocsError } from "./errors";
+export { AppleDevDocsClient } from "./client.js";
+export { CONFIG, DOC_SOURCES } from "./constants.js";
+export { AppleDocsError } from "./errors.js";
 export type {
   AbstractItem,
   FrameworkData,
@@ -10,5 +10,5 @@ export type {
   SymbolData,
   Technology,
   TopicSection,
-} from "./types";
-export { SearchUtils } from "./utils";
+} from "./types.js";
+export { SearchUtils } from "./utils.js";

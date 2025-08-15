@@ -4,10 +4,10 @@ import {
   ROLES,
   SYMBOL_KINDS,
   type DocSourceName,
-} from "./constants";
-import { DocSource } from "./doc-source";
-import { ErrorFactory } from "./errors";
-import { DocHttpClient } from "./http-client";
+} from "./constants.js";
+import { DocSource } from "./doc-source.js";
+import { ErrorFactory } from "./errors.js";
+import { DocHttpClient } from "./http-client.js";
 import type {
   AbstractItem,
   FrameworkData,
@@ -16,8 +16,8 @@ import type {
   SearchResult,
   SymbolData,
   Technology,
-} from "./types";
-import { SearchUtils } from "./utils";
+} from "./types.js";
+import { SearchUtils } from "./utils.js";
 
 export class AppleDevDocsClient {
   private readonly httpClient = new DocHttpClient();
