@@ -4,8 +4,8 @@ import type {
   SearchResult,
   SymbolData,
   Technology,
-} from "./types";
-import { SearchUtils } from "./utils";
+} from "./types.js";
+import { SearchUtils } from "./utils.js";
 
 interface ApiResponse<T> {
   references?: Record<string, T>;

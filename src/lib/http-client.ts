@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
-import { CONFIG, DEFAULT_HEADERS } from "./constants";
-import { ErrorFactory } from "./errors";
-import { LRUCache } from "./utils";
+import { CONFIG, DEFAULT_HEADERS } from "./constants.js";
+import { ErrorFactory } from "./errors.js";
+import { LRUCache } from "./utils.js";
 
 export class DocHttpClient {
   private readonly client: AxiosInstance;

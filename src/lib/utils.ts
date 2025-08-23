@@ -1,10 +1,10 @@
-import { CONFIG } from "./constants";
+import { CONFIG } from "./constants.js";
 import type {
   AbstractItem,
   Platform,
   SearchOptions,
   Technology,
-} from "./types";
+} from "./types.js";
 
 interface CacheEntry<T> {
   data: T;
