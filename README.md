@@ -2,8 +2,17 @@
 
 A Model Context Protocol (MCP) server that provides seamless access to Apple's Developer Documentation directly within your AI coding assistant.
 
+## 📦 Installation
+
+Install the MCP server globally using npm:
+
+```bash
+npm install -g apple-doc-mcp-server
+```
+
 ## 📋 Changelog
-- 1.5.0 (Major update!)
+- 1.5.1 (Major update!)
+  - Now on npm! someone annoying already uploaded it under apple-doc-mcp and theres no way to reach them so I had to rename it to apple-doc-mcp-server thanks random guy!
   - Introduced per-technology caching, mandatory framework selection, and the guided discovery/search flow.
   - Now it doesnt spam the doc server, all tech is cached after first call making every search super efficient!
   - Uses several search fallbacks to make sure it finds what youre looking for, and if it fails it'll do a regex to the entire technology and still give you suggestions!
@@ -17,16 +26,25 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
 
 ## Quick Start
 
-```bash
-npm install
-npm build
-```
-
-```"Use apple mcp select swiftui search tabbar"
-```
+```"Use apple mcp select swiftui search tabbar"```
 
 Configure your MCP client (example):
 
+Using npx (recommended):
+```json
+{
+  "mcpServers": {
+    "apple-doc": {
+      "command": "npx",
+      "args": [
+        "apple-doc-mcp-server@latest"
+      ]
+    }
+  }
+}
+```
+
+Or using node with the built file:
 ```json
 {
   "mcpServers": {
@@ -36,6 +54,12 @@ Configure your MCP client (example):
     }
   }
 }
+```
+
+For local development:
+```bash
+npm install
+npm build
 ```
 
 ## 🔄 Typical Workflow
