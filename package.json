@@ -1,6 +1,6 @@
 {
   "name": "apple-doc-mcp",
-  "version": "1.0.1",
+  "version": "1.5.0",
   "description": "MCP server providing seamless access to Apple Developer Documentation with smart search and wildcard support",
   "main": "dist/index.js",
   "type": "module",
@@ -27,19 +27,19 @@
   "homepage": "https://github.com/MightyDillah/apple-doc-mcp#readme",
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
+    "lint": "tsc --noEmit && xo src",
+    "lint:fix": "tsc --noEmit && xo src --fix",
     "start": "node dist/index.js",
     "postinstall": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.13.2",
-    "axios": "^1.10.0"
+    "@modelcontextprotocol/sdk": "^1.18.2",
+    "axios": "^1.12.2"
   },
   "devDependencies": {
-    "@types/node": "^24.0.6",
-    "typescript": "^5.8.3"
-  },
-  "engines": {
-    "node": ">=18"
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2",
+    "xo": "^1.2.2"
   }
-} 
+}

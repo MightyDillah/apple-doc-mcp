@@ -99,3 +99,6 @@ jspm_packages/
 # Test files (if any)
 test-*.js
 *.test.js 
+
+# Extra
+pnpm-lock.yaml

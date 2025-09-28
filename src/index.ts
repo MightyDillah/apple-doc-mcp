@@ -1,506 +1,729 @@
 #!/usr/bin/env node
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {exec} from 'node:child_process';
+import {promisify} from 'node:util';
+import {Server} from '@modelcontextprotocol/sdk/server/index.js';
+import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
-  CallToolRequestSchema,
-  ErrorCode,
-  ListToolsRequestSchema,
-  McpError,
+	CallToolRequestSchema,
+	ErrorCode,
+	ListToolsRequestSchema,
+	McpError,
 } from '@modelcontextprotocol/sdk/types.js';
-import { AppleDevDocsClient } from './apple-client.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import {AppleDevDocsClient} from './apple-client.js';
+import type {FrameworkData, ReferenceData, Technology} from './apple-client.js';
 
 const execAsync = promisify(exec);
 
 class AppleDevDocsMcpServer {
-  private server: Server;
-  private client: AppleDevDocsClient;
+	private readonly client: AppleDevDocsClient;
+	private readonly server: Server;
+	private activeTechnology?: Technology;
+	private activeFrameworkData?: FrameworkData;
+	private lastDiscovery?: {
+		query?: string;
+		results: Technology[];
+	};
 
-  constructor() {
-    this.server = new Server(
-      {
-        name: 'apple-dev-docs-mcp',
-        version: '1.0.0',
-      },
-      {
-        capabilities: {
-          tools: {},
-        },
-      }
-    );
+	constructor() {
+		this.server = new Server(
+			{
+				name: 'apple-dev-docs-mcp',
+				version: '1.0.0',
+			},
+			{
+				capabilities: {
+					tools: {},
+				},
+			},
+		);
 
-    this.client = new AppleDevDocsClient();
-    this.setupToolHandlers();
-  }
+		this.client = new AppleDevDocsClient();
+		this.setupToolHandlers();
+	}
 
-  private setupToolHandlers() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
-        tools: [
-          {
-            name: 'list_technologies',
-            description: 'List all available Apple technologies/frameworks',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: [],
-            },
-          },
-          {
-            name: 'get_documentation',
-            description: 'Get detailed documentation for any symbol, class, struct, or framework (automatically detects and handles both)',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                path: {
-                  type: 'string',
-                  description: 'Documentation path (e.g., "documentation/SwiftUI/View") or framework name (e.g., "SwiftUI")',
-                },
-              },
-              required: ['path'],
-            },
-          },
-          {
-            name: 'search_symbols',
-            description: 'Search for symbols across Apple frameworks (supports wildcards like "RPBroadcast*")',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                query: {
-                  type: 'string',
-                  description: 'Search query (supports wildcards: * and ?)',
-                },
-                framework: {
-                  type: 'string',
-                  description: 'Optional: Search within specific framework only',
-                },
-                symbolType: {
-                  type: 'string',
-                  description: 'Optional: Filter by symbol type (class, protocol, struct, etc.)',
-                },
-                platform: {
-                  type: 'string',
-                  description: 'Optional: Filter by platform (iOS, macOS, etc.)',
-                },
-                maxResults: {
-                  type: 'number',
-                  description: 'Optional: Maximum number of results (default: 20)',
-                },
-              },
-              required: ['query'],
-            },
-          },
-          {
-            name: 'check_updates',
-            description: 'Check for available updates from the git repository',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: [],
-            },
-          },
-        ],
-      };
-    });
+	async run() {
+		const transport = new StdioServerTransport();
+		await this.server.connect(transport);
+		console.error('Apple Developer Documentation MCP server running on stdio');
+	}
 
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      try {
-        switch (request.params.name) {
-          case 'list_technologies':
-            return await this.handleListTechnologies();
-          
-          case 'get_documentation':
-            return await this.handleGetDocumentation(request.params.arguments);
-          
-          case 'search_symbols':
-            return await this.handleSearchSymbols(request.params.arguments);
-          
-          case 'check_updates':
-            return await this.handleCheckUpdates();
-          
-          default:
-            throw new McpError(
-              ErrorCode.MethodNotFound,
-              `Unknown tool: ${request.params.name}`
-            );
-        }
-      } catch (error) {
-        throw new McpError(
-          ErrorCode.InternalError,
-          `Error executing tool: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    });
-  }
+	private async checkAndDisplayUpdates() {
+		try {
+			// Quietly fetch latest info
+			await execAsync('git fetch origin', {timeout: 5000});
 
-  private async handleListTechnologies() {
-    const technologies = await this.client.getTechnologies();
-    
-    // Group technologies by type/category
-    const frameworks: Array<{name: string, description: string}> = [];
-    const others: Array<{name: string, description: string}> = [];
-    
-    Object.values(technologies).forEach((tech) => {
-      if (tech.kind === 'symbol' && tech.role === 'collection') {
-        const description = this.client.extractText(tech.abstract);
-        const item = { name: tech.title, description };
-        frameworks.push(item);
-      } else {
-        const description = this.client.extractText(tech.abstract);
-        others.push({ name: tech.title, description });
-      }
-    });
+			const {stdout: currentBranch} = await execAsync('git branch --show-current');
+			const branch = currentBranch.trim();
 
-    const content = [
-      '# Apple Developer Technologies\n',
-      '## Core Frameworks\n',
-      ...frameworks.slice(0, 15).map(f => `• **${f.name}** - ${f.description}`),
-      '\n## Additional Technologies\n',
-      ...others.slice(0, 10).map(f => `• **${f.name}** - ${f.description}`),
-      '\n*Use `get_documentation <name>` to explore any framework or symbol*',
-      `\n\n**Total: ${frameworks.length + others.length} technologies available**`
-    ].join('\n');
+			const {stdout: behind} = await execAsync(`git rev-list --count HEAD..origin/${branch}`);
+			const behindCount = Number.parseInt(behind.trim(), 10);
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: content,
-        },
-      ],
-    };
-  }
+			if (behindCount > 0) {
+				console.error(`🔄 ${behindCount} update${behindCount > 1 ? 's' : ''} available! Use 'check_updates' tool for details and update instructions.`);
+			}
+		} catch {
+			// Silent fail - don't spam console with git errors
+		}
+	}
 
-  private async handleGetDocumentation(args: any) {
-    const { path } = args;
-    
-    try {
-      const data = await this.client.getSymbol(path);
-      
-      const title = data.metadata?.title || 'Symbol';
-      const kind = data.metadata?.symbolKind || 'Unknown';
-      const platforms = this.client.formatPlatforms(data.metadata?.platforms);
-      const description = this.client.extractText(data.abstract);
-      
-      let content = [
-        `# ${title}\n`,
-        `**Type:** ${kind}`,
-        `**Platforms:** ${platforms}\n`,
-        '## Overview',
-        description
-      ];
+	private async handleDiscoverTechnologies(args: {query?: string; page?: number; pageSize?: number}) {
+		const {query, page = 1, pageSize = 25} = args;
+		const technologies = await this.client.getTechnologies();
+		const frameworks = Object.values(technologies).filter(tech =>
+			tech.kind === 'symbol' && tech.role === 'collection'
+		);
 
-      // Add topic sections if available
-      if (data.topicSections && data.topicSections.length > 0) {
-        content.push('\n## API Reference\n');
-        data.topicSections.forEach(section => {
-          content.push(`### ${section.title}`);
-          if (section.identifiers && section.identifiers.length > 0) {
-            section.identifiers.slice(0, 5).forEach(id => {
-              const ref = data.references?.[id];
-              if (ref) {
-                const refDesc = this.client.extractText(ref.abstract || []);
-                content.push(`• **${ref.title}** - ${refDesc.substring(0, 100)}${refDesc.length > 100 ? '...' : ''}`);
-              }
-            });
-            if (section.identifiers.length > 5) {
-              content.push(`*... and ${section.identifiers.length - 5} more items*`);
-            }
-          }
-          content.push('');
-        });
-      }
+		let filtered = frameworks;
+		if (query) {
+			const lowerQuery = query.toLowerCase();
+			filtered = frameworks.filter(tech =>
+				tech.title.toLowerCase().includes(lowerQuery)
+				|| this.client.extractText(tech.abstract).toLowerCase().includes(lowerQuery)
+			);
+		}
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: content.join('\n'),
-          },
-        ],
-      };
-    } catch (error) {
-      // Check if user searched for a technology instead of a symbol
-      const frameworkName = await this.checkIfTechnology(path);
-      if (frameworkName) {
-        return await this.handleTechnologyFallback(frameworkName, path);
-      }
-      
-      // Re-throw the original error if it's not a technology
-      throw error;
-    }
-  }
+		const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+		const currentPage = Math.min(Math.max(page, 1), totalPages);
+		const start = (currentPage - 1) * pageSize;
+		const pageItems = filtered.slice(start, start + pageSize);
 
-  private async checkIfTechnology(path: string): Promise<string | null> {
-    try {
-      const technologies = await this.client.getTechnologies();
-      
-      // Extract potential framework name from path
-      const cleanPath = path.replace(/^documentation\//, '').toLowerCase();
-      const pathParts = cleanPath.split('/');
-      const potentialFramework = pathParts[0];
-      
-      // Check if it matches any technology
-      for (const tech of Object.values(technologies)) {
-        if (tech && tech.title) {
-          if (tech.title.toLowerCase() === potentialFramework || 
-              tech.title.toLowerCase() === cleanPath) {
-            return tech.title;
-          }
-        }
-      }
-      
-      return null;
-    } catch (error) {
-      return null;
-    }
-  }
+		this.lastDiscovery = {
+			query,
+			results: pageItems,
+		};
 
-  private async handleTechnologyFallback(frameworkName: string, originalPath: string) {
-    try {
-      const data = await this.client.getFramework(frameworkName);
-      
-      const title = data.metadata?.title || frameworkName;
-      const description = this.client.extractText(data.abstract);
-      const platforms = this.client.formatPlatforms(data.metadata?.platforms);
-      
-              const content = [
-          `# 🔍 Framework Detected: ${title}\n`,
-          `⚠️ **You searched for a framework instead of a specific symbol.**`,
-          `To access symbols within this framework, use the format: **framework/symbol**`,
-          `**Example:** \`documentation/${frameworkName}/View\` instead of \`${originalPath}\`\n`,
-          `**Platforms:** ${platforms}\n`,
-          `## Framework Overview`,
-          description,
-          '\n## Available Symbol Categories\n',
-          ...data.topicSections.map(section => {
-            const count = section.identifiers?.length || 0;
-            return `• **${section.title}** (${count} symbols)`;
-          }),
-          '\n## Next Steps',
-          `• **Browse symbols:** Use \`documentation/${frameworkName}/[SymbolName]\``,
-          `• **Search symbols:** Use \`search_symbols\` with a specific symbol name`,
-          `• **Explore framework:** Use \`get_documentation ${frameworkName}\` for detailed structure`
-        ].join('\n');
+		const lines = [
+			`# Discover Apple Technologies${query ? ` (filtered by "${query}")` : ''}\n`,
+			`**Total frameworks:** ${frameworks.length}`,
+			`**Matches:** ${filtered.length}`,
+			`**Page:** ${currentPage} / ${totalPages}\n`,
+			'## Available Frameworks\n',
+		];
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: content,
-          },
-        ],
-      };
-    } catch (error) {
-      // If framework lookup also fails, provide general guidance
-      return {
-        content: [
-          {
-            type: 'text',
-            text: [
-              `# ❌ Symbol Not Found: ${originalPath}\n`,
-              `The requested symbol could not be located in Apple's documentation.`,
-              `\n## Common Issues`,
-              `• **Incorrect path format:** Expected \`documentation/Framework/Symbol\``,
-              `• **Framework vs Symbol:** "${originalPath}" may be a framework name rather than a symbol`,
-              `• **Case sensitivity:** Ensure proper capitalization (e.g., "SwiftUI" not "swiftui")`,
-              `\n## Recommended Actions`,
-              `• **List frameworks:** Use \`list_technologies\` to see available frameworks`,
-              `• **Browse framework:** Use \`get_documentation <name>\` to explore structure`,
-              `• **Search symbols:** Use \`search_symbols <query>\` to find specific symbols`,
-              `• **Example search:** \`search_symbols "View"\` to find View-related symbols`
-            ].join('\n'),
-          },
-        ],
-      };
-    }
-  }
+		for (const framework of pageItems) {
+			const description = this.client.extractText(framework.abstract);
+			lines.push(`### ${framework.title}`);
+			if (description) {
+				lines.push(`   ${description.slice(0, 180)}${description.length > 180 ? '...' : ''}`);
+			}
+			lines.push(`   • **Identifier:** ${framework.identifier}`);
+			lines.push(`   • **Select:** \`choose_technology "${framework.title}"\``);
+			lines.push('');
+		}
 
-  private async handleSearchSymbols(args: any) {
-    const { query, framework, symbolType, platform, maxResults = 20 } = args;
-    
-    let results;
-    if (framework) {
-      // Search within specific framework
-      results = await this.client.searchFramework(framework, query, {
-        symbolType,
-        platform,
-        maxResults
-      });
-    } else {
-      // Global search across frameworks
-      results = await this.client.searchGlobal(query, {
-        symbolType,
-        platform,
-        maxResults
-      });
-    }
+		if (totalPages > 1) {
+			const paginationLines: string[] = [];
+			if (currentPage > 1) {
+				paginationLines.push(`• Previous: \`discover_technologies { "query": "${query ?? ''}", "page": ${currentPage - 1} }\``);
+			}
+			if (currentPage < totalPages) {
+				paginationLines.push(`• Next: \`discover_technologies { "query": "${query ?? ''}", "page": ${currentPage + 1} }\``);
+			}
+			lines.push('*Pagination*');
+			lines.push(...paginationLines);
+		}
 
-    const content = [
-      `# Search Results for "${query}"\n`,
-      framework ? `**Framework:** ${framework}` : '**Scope:** All frameworks',
-      symbolType ? `**Symbol Type:** ${symbolType}` : '',
-      platform ? `**Platform:** ${platform}` : '',
-      `**Found:** ${results.length} results\n`
-    ].filter(Boolean);
+		lines.push('\n## Next Step');
+		lines.push('Call `choose_technology` with the framework title or identifier to make it active.');
 
-    if (results.length > 0) {
-      content.push('## Results\n');
-      results.forEach((result, index) => {
-        content.push(`### ${index + 1}. ${result.title}`);
-        content.push(`**Framework:** ${result.framework}${result.symbolKind ? ` | **Type:** ${result.symbolKind}` : ''}`);
-        if (result.platforms) {
-          content.push(`**Platforms:** ${result.platforms}`);
-        }
-        content.push(`**Path:** \`${result.path}\``);
-        if (result.description) {
-          content.push(`${result.description.substring(0, 150)}${result.description.length > 150 ? '...' : ''}`);
-        }
-        content.push('');
-      });
-      
-      content.push(`*Use \`get_documentation\` with any path above to see detailed documentation*`);
-    } else {
-      content.push('## No Results Found\n');
-      content.push('Try:');
-      content.push('• Broader search terms');
-      content.push('• Wildcard patterns (e.g., "UI*", "*View*")'); 
-      content.push('• Removing filters');
-    }
+		return {
+			content: [
+				{
+					text: lines.join('\n'),
+					type: 'text',
+				},
+			],
+		};
+	}
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: content.join('\n'),
-        },
-      ],
-    };
-  }
+	private async handleCheckUpdates() {
+		try {
+			// Fetch latest changes from remote
+			await execAsync('git fetch origin');
 
-  private async handleCheckUpdates() {
-    try {
-      // Fetch latest changes from remote
-      await execAsync('git fetch origin');
-      
-      // Check current branch
-      const { stdout: currentBranch } = await execAsync('git branch --show-current');
-      const branch = currentBranch.trim();
-      
-      // Compare local vs remote commits
-      const { stdout: behind } = await execAsync(`git rev-list --count HEAD..origin/${branch}`);
-      const { stdout: ahead } = await execAsync(`git rev-list --count origin/${branch}..HEAD`);
-      
-      const behindCount = parseInt(behind.trim());
-      const aheadCount = parseInt(ahead.trim());
-      
-      // Get latest commit info
-      const { stdout: localCommit } = await execAsync('git log -1 --format="%h %s (%an, %ar)"');
-      const { stdout: remoteCommit } = await execAsync(`git log -1 --format="%h %s (%an, %ar)" origin/${branch}`);
-      
-      let status = '';
-      let icon = '';
-      
-      if (behindCount === 0 && aheadCount === 0) {
-        status = 'Up to date';
-        icon = '✅';
-      } else if (behindCount > 0 && aheadCount === 0) {
-        status = `${behindCount} update${behindCount > 1 ? 's' : ''} available`;
-        icon = '🔄';
-      } else if (behindCount === 0 && aheadCount > 0) {
-        status = `${aheadCount} local change${aheadCount > 1 ? 's' : ''} ahead`;
-        icon = '🚀';
-      } else {
-        status = `${behindCount} update${behindCount > 1 ? 's' : ''} available, ${aheadCount} local change${aheadCount > 1 ? 's' : ''} ahead`;
-        icon = '⚡';
-      }
-      
-      const content = [
-        `# ${icon} Git Repository Status\n`,
-        `**Branch:** ${branch}`,
-        `**Status:** ${status}\n`,
-        `## Current State`,
-        `**Local commit:** ${localCommit.trim()}`,
-        `**Remote commit:** ${remoteCommit.trim()}\n`
-      ];
-      
-      if (behindCount > 0) {
-        content.push(`## 💡 Available Updates`);
-        content.push(`There ${behindCount === 1 ? 'is' : 'are'} **${behindCount}** new commit${behindCount > 1 ? 's' : ''} available.`);
-        content.push(`**To update:** Run \`git pull origin ${branch}\` in your terminal, then restart the MCP server.\n`);
-      }
-      
-      if (aheadCount > 0) {
-        content.push(`## 🚀 Local Changes`);
-        content.push(`You have **${aheadCount}** local commit${aheadCount > 1 ? 's' : ''} that haven't been pushed.`);
-        content.push(`**To share:** Run \`git push origin ${branch}\` in your terminal.\n`);
-      }
-      
-      if (behindCount === 0 && aheadCount === 0) {
-        content.push(`## 🎉 All Good!`);
-        content.push(`Your local repository is in sync with the remote repository.`);
-      }
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: content.join('\n'),
-          },
-        ],
-      };
-      
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: [
-              `# ❌ Git Update Check Failed\n`,
-              `Unable to check for updates from the git repository.`,
-              `\n**Error:** ${error instanceof Error ? error.message : String(error)}`,
-              `\n**Common Issues:**`,
-              `• Not in a git repository`,
-              `• No internet connection`,
-              `• Git not installed or configured`,
-              `• Repository access issues`
-            ].join('\n'),
-          },
-        ],
-      };
-    }
-  }
+			// Check current branch
+			const {stdout: currentBranch} = await execAsync('git branch --show-current');
+			const branch = currentBranch.trim();
 
-  private async checkAndDisplayUpdates() {
-    try {
-      // Quietly fetch latest info
-      await execAsync('git fetch origin', { timeout: 5000 });
-      
-      const { stdout: currentBranch } = await execAsync('git branch --show-current');
-      const branch = currentBranch.trim();
-      
-      const { stdout: behind } = await execAsync(`git rev-list --count HEAD..origin/${branch}`);
-      const behindCount = parseInt(behind.trim());
-      
-      if (behindCount > 0) {
-        console.error(`🔄 ${behindCount} update${behindCount > 1 ? 's' : ''} available! Use 'check_updates' tool for details and update instructions.`);
-      }
-    } catch (error) {
-      // Silent fail - don't spam console with git errors
-    }
-  }
+			// Compare local vs remote commits
+			const {stdout: behind} = await execAsync(`git rev-list --count HEAD..origin/${branch}`);
+			const {stdout: ahead} = await execAsync(`git rev-list --count origin/${branch}..HEAD`);
 
-  async run() {
-    // Check for updates on startup
-    await this.checkAndDisplayUpdates();
-    
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    console.error('Apple Developer Documentation MCP server running on stdio');
-  }
+			const behindCount = Number.parseInt(behind.trim(), 10);
+			const aheadCount = Number.parseInt(ahead.trim(), 10);
+
+			// Get latest commit info
+			const {stdout: localCommit} = await execAsync('git log -1 --format="%h %s (%an, %ar)"');
+			const {stdout: remoteCommit} = await execAsync(`git log -1 --format="%h %s (%an, %ar)" origin/${branch}`);
+
+			let status = '';
+			let icon = '';
+
+			if (behindCount === 0 && aheadCount === 0) {
+				status = 'Up to date';
+				icon = '✅';
+			} else if (behindCount > 0 && aheadCount === 0) {
+				status = `${behindCount} update${behindCount > 1 ? 's' : ''} available`;
+				icon = '🔄';
+			} else if (behindCount === 0 && aheadCount > 0) {
+				status = `${aheadCount} local change${aheadCount > 1 ? 's' : ''} ahead`;
+				icon = '🚀';
+			} else {
+				status = `${behindCount} update${behindCount > 1 ? 's' : ''} available, ${aheadCount} local change${aheadCount > 1 ? 's' : ''} ahead`;
+				icon = '⚡';
+			}
+
+			const content = [
+				`# ${icon} Git Repository Status\n`,
+				`**Branch:** ${branch}`,
+				`**Status:** ${status}\n`,
+				'## Current State',
+				`**Local commit:** ${localCommit.trim()}`,
+				`**Remote commit:** ${remoteCommit.trim()}\n`,
+			];
+
+			if (behindCount > 0) {
+				const updateText = `There ${behindCount === 1 ? 'is' : 'are'} **${behindCount}** new commit${behindCount > 1 ? 's' : ''} available.`;
+				const updateInstruction = `**To update:** Run \`git pull origin ${branch}\` in your terminal, then restart the MCP server.`;
+				content.push('## 💡 Available Updates', updateText, updateInstruction);
+			}
+
+			if (aheadCount > 0) {
+				const localText = `You have **${aheadCount}** local commit${aheadCount > 1 ? 's' : ''} that haven't been pushed.`;
+				const localInstruction = `**To share:** Run \`git push origin ${branch}\` in your terminal.`;
+				content.push('## 🚀 Local Changes', localText, localInstruction);
+			}
+
+			if (behindCount === 0 && aheadCount === 0) {
+				content.push('## 🎉 All Good!', 'Your local repository is in sync with the remote repository.');
+			}
+
+			return {
+				content: [
+					{
+						text: content.join('\n'),
+						type: 'text',
+					},
+				],
+			};
+		} catch (error) {
+			return {
+				content: [
+					{
+						text: [
+							'# ❌ Git Update Check Failed\n',
+							'Unable to check for updates from the git repository.',
+							`\n**Error:** ${error instanceof Error ? error.message : String(error)}`,
+							'\n**Common Issues:**',
+							'• Not in a git repository',
+							'• No internet connection',
+							'• Git not installed or configured',
+							'• Repository access issues',
+						].join('\n'),
+						type: 'text',
+					},
+				],
+			};
+		}
+	}
+
+	private async handleGetDocumentation(args: {path: string}) {
+		const {path} = args;
+
+		if (!this.activeTechnology) {
+			return this.formatNoTechnologyMessage();
+		}
+
+		const framework = await this.loadActiveFrameworkData();
+		const identifierParts = this.activeTechnology.identifier.split('/');
+		const frameworkName = identifierParts[identifierParts.length - 1];
+
+		let targetPath = path;
+		if (!path.startsWith('documentation/')) {
+			targetPath = `documentation/${frameworkName}/${path}`;
+		}
+
+		try {
+			const data = await this.client.getSymbol(targetPath);
+
+			const title = data.metadata?.title || 'Symbol';
+			const kind = data.metadata?.symbolKind || 'Unknown';
+			const platforms = this.client.formatPlatforms(data.metadata?.platforms);
+			const description = this.client.extractText(data.abstract);
+
+			const content = [
+				`# ${title}\n`,
+				`**Technology:** ${this.activeTechnology.title}`,
+				`**Type:** ${kind}`,
+				`**Platforms:** ${platforms}\n`,
+				'## Overview',
+				description,
+			];
+
+			this.addTopicSections(data, content);
+
+			return {
+				content: [
+					{
+						text: content.join('\n'),
+						type: 'text',
+					},
+				],
+			};
+		} catch (error) {
+			throw new McpError(
+				ErrorCode.InvalidRequest,
+				`Failed to load documentation for ${targetPath}: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	}
+
+	private addTopicSections(
+		data: {
+			topicSections?: Array<{title: string; identifiers?: string[]}>;
+			references?: Record<string, {title: string; abstract?: Array<{text: string; type: string}>}>;
+		},
+		content: string[],
+	) {
+		if (!data.topicSections || data.topicSections.length === 0) {
+			return;
+		}
+
+		content.push('\n## API Reference\n');
+		for (const section of data.topicSections) {
+			content.push(`### ${section.title}`);
+			if (section.identifiers && section.identifiers.length > 0) {
+				for (const id of section.identifiers.slice(0, 5)) {
+					const ref = data.references?.[id];
+					if (ref) {
+						const refDesc = this.client.extractText(ref.abstract ?? []);
+						content.push(`• **${ref.title}** - ${refDesc.slice(0, 100)}${refDesc.length > 100 ? '...' : ''}`);
+					}
+				}
+
+				if (section.identifiers.length > 5) {
+					content.push(`*... and ${section.identifiers.length - 5} more items*`);
+				}
+			}
+
+			content.push('');
+		}
+	}
+
+	private fuzzyMatchSymbols(entries: Array<{ref: ReferenceData; id: string}>, query: string, options: {maxResults: number}): Array<{ref: ReferenceData; id: string; score: number}> {
+		const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+		const ranked: Array<{ref: ReferenceData; id: string; score: number}> = [];
+
+		for (const entry of entries) {
+			const haystacks = [entry.ref.title ?? '', this.client.extractText(entry.ref.abstract ?? []).toLowerCase()];
+			let score = 0;
+
+			for (const term of terms) {
+				if (haystacks.some(h => h.toLowerCase().includes(term))) {
+					score += 1;
+				}
+			}
+
+			if (score > 0) {
+				ranked.push({ref: entry.ref, id: entry.id, score});
+			}
+		}
+
+		ranked.sort((a, b) => b.score - a.score || a.ref.title.localeCompare(b.ref.title));
+		return ranked.slice(0, options.maxResults);
+	}
+
+	private async handleSearchSymbols(args: {maxResults?: number; platform?: string; query: string; symbolType?: string}) {
+		if (!this.activeTechnology) {
+			return this.formatNoTechnologyMessage();
+		}
+
+		const {query, maxResults = 20, platform, symbolType} = args;
+		const entries = await this.ensureFrameworkIndex();
+		let matches = this.fuzzyMatchSymbols(entries, query, {maxResults: maxResults * 2});
+
+		if (symbolType) {
+			matches = matches.filter(match => match.ref.kind?.toLowerCase() === symbolType.toLowerCase());
+		}
+
+		if (platform) {
+			matches = matches.filter(match => match.ref.platforms?.some(p => p.name?.toLowerCase().includes(platform.toLowerCase())) ?? true);
+		}
+
+		matches = matches.slice(0, maxResults);
+
+		const lines = [
+			`# 🔍 Search Results for "${query}"\n`,
+			`**Technology:** ${this.activeTechnology.title}`,
+			`**Matches:** ${matches.length}\n`,
+			'## Symbols\n',
+		];
+
+		for (const match of matches) {
+			lines.push(`### ${match.ref.title}`);
+			if (match.ref.kind) {
+				lines.push(`   • **Kind:** ${match.ref.kind}`);
+			}
+			lines.push(`   • **Path:** ${match.ref.url}`);
+			const abstractText = this.client.extractText(match.ref.abstract ?? []);
+			if (abstractText) {
+				lines.push(`   ${abstractText.slice(0, 180)}${abstractText.length > 180 ? '...' : ''}`);
+			}
+			lines.push('');
+		}
+
+		if (matches.length === 0) {
+			lines.push('No symbols matched those terms within this technology.');
+			lines.push('Try broader keywords (e.g. "tab" instead of "tabbar"), explore synonyms ("sheet" vs "modal"), or inspect sections in `discover_technologies`.');
+		}
+
+		return {
+			content: [
+				{
+					text: lines.join('\n'),
+					type: 'text',
+				},
+			],
+		};
+	}
+
+	private async loadActiveFrameworkData(): Promise<FrameworkData> {
+		if (!this.activeTechnology) {
+			throw new McpError(
+				ErrorCode.InvalidRequest,
+				'No technology selected. Use `discover_technologies` then `choose_technology` first.',
+			);
+		}
+
+		if (this.activeFrameworkData) {
+			return this.activeFrameworkData;
+		}
+
+		const identifierParts = this.activeTechnology.identifier.split('/');
+		const frameworkName = identifierParts[identifierParts.length - 1];
+		const data = await this.client.getFramework(frameworkName);
+		this.activeFrameworkData = data;
+		return data;
+	}
+
+	private async ensureFrameworkIndex(): Promise<Array<{ref: ReferenceData; id: string}>> {
+		const framework = await this.loadActiveFrameworkData();
+		return Object.entries(framework.references).map(([id, ref]) => ({id, ref}));
+	}
+
+	private formatNoTechnologyMessage(): {content: Array<{text: string; type: string}>} {
+		const lines: string[] = [
+			'# 🚦 Technology Not Selected\n',
+			'Before you can search or view documentation, choose a framework/technology.',
+			'',
+			'## How to get started',
+			'• `discover_technologies { "query": "swift" }` — narrow the catalogue with a keyword',
+			'• `choose_technology "SwiftUI"` — select the framework you want to explore',
+			'• `search_symbols { "query": "tab view layout" }` — run focused keyword searches',
+			'',
+			'**Search tips:** start broad ("tab", "animation"), avoid punctuation, and try synonyms ("toolbar" vs "tabbar").',
+		];
+
+		if (this.lastDiscovery?.results?.length) {
+			lines.push('', '### Recently discovered frameworks');
+			for (const result of this.lastDiscovery.results.slice(0, 5)) {
+				lines.push(`• ${result.title} (\`choose_technology "${result.title}"\`)`);
+			}
+		}
+
+		return {
+			content: [
+				{
+					text: lines.join('\n'),
+					type: 'text',
+				},
+			],
+		};
+	}
+
+	private static fuzzyScore(a: string | undefined, b: string | undefined): number {
+		if (!a || !b) {
+			return Number.POSITIVE_INFINITY;
+		}
+		const lowerA = a.toLowerCase();
+		const lowerB = b.toLowerCase();
+		if (lowerA === lowerB) {
+			return 0;
+		}
+		if (lowerA.startsWith(lowerB) || lowerB.startsWith(lowerA)) {
+			return 1;
+		}
+		if (lowerA.includes(lowerB) || lowerB.includes(lowerA)) {
+			return 2;
+		}
+		return 3;
+	}
+
+	private async handleChooseTechnology(args: {name?: string; identifier?: string}) {
+		const {name, identifier} = args;
+		const technologies = await this.client.getTechnologies();
+		const candidates = Object.values(technologies);
+
+		let chosen: Technology | undefined;
+
+		if (identifier) {
+			const lowerIdentifier = identifier.toLowerCase();
+			chosen = candidates.find(tech => tech.identifier?.toLowerCase() === lowerIdentifier);
+		}
+
+		if (!chosen && name) {
+			const lower = name.toLowerCase();
+			chosen = candidates.find(tech => tech.title && tech.title.toLowerCase() === lower);
+		}
+
+		if (!chosen && name) {
+			const scored = candidates
+				.map(tech => ({tech, score: AppleDevDocsMcpServer.fuzzyScore(tech.title, name)}))
+				.sort((a, b) => a.score - b.score);
+			chosen = scored[0]?.tech;
+		}
+
+		if (!chosen) {
+			const searchTerm = (name ?? identifier ?? '').toLowerCase();
+			const suggestions = candidates
+				.filter(tech => tech.title?.toLowerCase().includes(searchTerm))
+				.slice(0, 5);
+
+			const lines = [
+				'# ❌ Technology Not Found\n',
+				`Could not resolve "${name ?? identifier ?? 'unknown'}".`,
+				'',
+				'## Suggestions',
+			];
+
+			if (suggestions.length > 0) {
+				for (const suggestion of suggestions) {
+					lines.push(`• ${suggestion.title} — \`choose_technology "${suggestion.title}"\``);
+				}
+			} else {
+				lines.push('• Use `discover_technologies { "query": "keyword" }` to find candidates');
+			}
+
+			return {
+				content: [
+					{
+						text: lines.join('\n'),
+						type: 'text',
+					},
+				],
+			};
+		}
+
+		if (chosen.kind !== 'symbol' || chosen.role !== 'collection') {
+			return {
+				content: [
+					{
+						text: `# ⚠️ Unsupported Selection\n${chosen.title} is not a framework collection. Please choose a framework technology instead.`,
+						type: 'text',
+					},
+				],
+			};
+		}
+
+		this.activeTechnology = chosen;
+		this.activeFrameworkData = undefined;
+
+		const lines = [
+			'# ✅ Technology Selected\n',
+			`**Name:** ${chosen.title}`,
+			`**Identifier:** ${chosen.identifier}`,
+			'',
+			'## Next actions',
+			'• `search_symbols { "query": "keyword" }` — fuzzy search within this framework',
+			'• `get_documentation { "path": "SymbolName" }` — open a symbol page',
+			'• `discover_technologies` — pick another framework',
+		];
+
+		return {
+			content: [
+				{
+					text: lines.join('\n'),
+					type: 'text',
+				},
+			],
+		};
+	}
+
+	private async handleCurrentTechnology() {
+		if (!this.activeTechnology) {
+			return this.formatNoTechnologyMessage();
+		}
+
+		const tech = this.activeTechnology;
+		const lines = [
+			'# 📘 Current Technology\n',
+			`**Name:** ${tech.title}`,
+			`**Identifier:** ${tech.identifier}`,
+			'',
+			'## Next actions',
+			'• `search_symbols { "query": "keyword" }` to find symbols',
+			'• `get_documentation { "path": "SymbolName" }` to open docs',
+			'• `choose_technology "Another Framework"` to switch',
+		];
+
+		return {
+			content: [
+				{
+					text: lines.join('\n'),
+					type: 'text',
+				},
+			],
+		};
+	}
+
+	private setupToolHandlers() {
+		this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+			tools: [
+				{
+					description: 'Explore and filter available Apple technologies/frameworks before choosing one',
+					inputSchema: {
+						properties: {
+							page: {
+								description: 'Optional page number (default 1)',
+								type: 'number',
+							},
+							pageSize: {
+								description: 'Optional page size (default 25, max 100)',
+								type: 'number',
+							},
+							query: {
+								description: 'Optional keyword to filter technologies',
+								type: 'string',
+							},
+						},
+						required: [],
+						type: 'object',
+					},
+					name: 'discover_technologies',
+				},
+				{
+					description: 'Select the framework/technology to scope all subsequent searches and documentation lookups',
+					inputSchema: {
+						properties: {
+							identifier: {
+								description: 'Optional technology identifier (e.g. doc://.../SwiftUI)',
+								type: 'string',
+							},
+							name: {
+								description: 'Technology name/title (e.g. SwiftUI)',
+								type: 'string',
+							},
+						},
+						required: [],
+						type: 'object',
+					},
+					name: 'choose_technology',
+				},
+				{
+					description: 'Report the currently selected technology and how to change it',
+					inputSchema: {
+						properties: {},
+						required: [],
+						type: 'object',
+					},
+					name: 'current_technology',
+				},
+				{
+					description: 'Get detailed documentation for symbols within the selected technology (accepts relative symbol names)',
+					inputSchema: {
+						properties: {
+							path: {
+								description: 'Symbol path or relative name (e.g. "View")',
+								type: 'string',
+							},
+						},
+						required: ['path'],
+						type: 'object',
+					},
+					name: 'get_documentation',
+				},
+				{
+					description: 'Search symbols within the currently selected technology (supports fuzzy keywords)',
+					inputSchema: {
+						properties: {
+							maxResults: {
+								description: 'Optional maximum number of results (default 20)',
+								type: 'number',
+							},
+							platform: {
+								description: 'Optional platform filter (iOS, macOS, etc.)',
+								type: 'string',
+							},
+							query: {
+								description: 'Search keywords (supports wildcards)',
+								type: 'string',
+							},
+							symbolType: {
+								description: 'Optional symbol kind filter (class, protocol, etc.)',
+								type: 'string',
+							},
+						},
+						required: ['query'],
+						type: 'object',
+					},
+					name: 'search_symbols',
+				},
+				{
+					description: 'Check for available updates from the git repository',
+					inputSchema: {
+						properties: {},
+						required: [],
+						type: 'object',
+					},
+					name: 'check_updates',
+				},
+			],
+		}));
+
+		this.server.setRequestHandler(CallToolRequestSchema, async request => {
+			try {
+				switch (request.params.name) {
+					case 'discover_technologies': {
+						return await this.handleDiscoverTechnologies(request.params.arguments as {query?: string; page?: number; pageSize?: number});
+					}
+
+					case 'choose_technology': {
+						return await this.handleChooseTechnology(request.params.arguments as {name?: string; identifier?: string});
+					}
+
+					case 'current_technology': {
+						return await this.handleCurrentTechnology();
+					}
+
+					case 'check_updates': {
+						return await this.handleCheckUpdates();
+					}
+
+					case 'get_documentation': {
+						return await this.handleGetDocumentation(request.params.arguments as {path: string});
+					}
+
+					case 'search_symbols': {
+						return await this.handleSearchSymbols(request.params.arguments as {maxResults?: number; platform?: string; query: string; symbolType?: string});
+					}
+
+					default: {
+						throw new McpError(
+							ErrorCode.MethodNotFound,
+							`Unknown tool: ${request.params.name}`,
+						);
+					}
+				}
+			} catch (error) {
+				throw new McpError(
+					ErrorCode.InternalError,
+					`Error executing tool: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
+		});
+	}
 }
 
 const server = new AppleDevDocsMcpServer();
-server.run().catch(console.error); 
+await server.run();
