@@ -2,14 +2,6 @@
 
 A Model Context Protocol (MCP) server that provides seamless access to Apple's Developer Documentation directly within your AI coding assistant.
 
-## 📦 Installation
-
-Install the MCP server globally using npm:
-
-```bash
-npm install -g apple-doc-mcp-server
-```
-
 ## 📋 Changelog
 - 1.5.1 (Major update!)
   - Now on npm! someone annoying already uploaded it under apple-doc-mcp and theres no way to reach them so I had to rename it to apple-doc-mcp-server thanks random guy!
