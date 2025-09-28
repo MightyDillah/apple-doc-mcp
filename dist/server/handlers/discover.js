@@ -1,0 +1,62 @@
+import { bold, header, trimWithEllipsis } from '../markdown.js';
+const formatPagination = (query, currentPage, totalPages) => {
+    if (totalPages <= 1) {
+        return [];
+    }
+    const safeQuery = query ?? '';
+    const items = [];
+    if (currentPage > 1) {
+        items.push(`• Previous: \`discover_technologies { "query": "${safeQuery}", "page": ${currentPage - 1} }\``);
+    }
+    if (currentPage < totalPages) {
+        items.push(`• Next: \`discover_technologies { "query": "${safeQuery}", "page": ${currentPage + 1} }\``);
+    }
+    return ['*Pagination*', ...items];
+};
+export const buildDiscoverHandler = ({ client, state }) => async (args) => {
+    const { query, page = 1, pageSize = 25 } = args;
+    const technologies = await client.getTechnologies();
+    const frameworks = Object.values(technologies).filter(tech => tech.kind === 'symbol' && tech.role === 'collection');
+    let filtered = frameworks;
+    if (query) {
+        const lowerQuery = query.toLowerCase();
+        filtered = frameworks.filter(tech => tech.title.toLowerCase().includes(lowerQuery)
+            || client.extractText(tech.abstract).toLowerCase().includes(lowerQuery));
+    }
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const currentPage = Math.min(Math.max(page, 1), totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const pageItems = filtered.slice(start, start + pageSize);
+    state.setLastDiscovery({ query, results: pageItems });
+    const lines = [
+        header(1, `Discover Apple Technologies${query ? ` (filtered by "${query}")` : ''}`),
+        '\n',
+        bold('Total frameworks', frameworks.length.toString()),
+        bold('Matches', filtered.length.toString()),
+        bold('Page', `${currentPage} / ${totalPages}`),
+        '\n',
+        header(2, 'Available Frameworks'),
+    ];
+    for (const framework of pageItems) {
+        const description = client.extractText(framework.abstract);
+        lines.push(`### ${framework.title}`);
+        if (description) {
+            lines.push(`   ${trimWithEllipsis(description, 180)}`);
+        }
+        lines.push(`   • **Identifier:** ${framework.identifier}`);
+        lines.push(`   • **Select:** \`choose_technology "${framework.title}"\``);
+        lines.push('');
+    }
+    lines.push(...formatPagination(query, currentPage, totalPages));
+    lines.push('\n## Next Step');
+    lines.push('Call `choose_technology` with the framework title or identifier to make it active.');
+    return {
+        content: [
+            {
+                text: lines.join('\n'),
+                type: 'text',
+            },
+        ],
+    };
+};
+//# sourceMappingURL=discover.js.map

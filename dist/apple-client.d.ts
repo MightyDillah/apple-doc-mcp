@@ -67,19 +67,21 @@ export type ReferenceData = {
 export declare class AppleDevDocsClient {
     private readonly cache;
     private readonly cacheTimeout;
+    private readonly docsDir;
     private readonly technologiesCachePath;
-    private readonly frameworkCacheDir;
     private sanitizeFrameworkName;
-    private getFrameworkCachePath;
-    private ensureFrameworkCacheDir;
-    private loadCachedFramework;
-    private saveFrameworkCache;
-    extractText(abstract: Array<{
+    private ensureDocsDir;
+    private getDocsPath;
+    private loadDocsFramework;
+    private saveDocsFramework;
+    private saveSymbolCache;
+    private loadSymbolCache;
+    private loadCachedTechnologies;
+    private saveCachedTechnologies;
+    extractText(abstract?: Array<{
         text: string;
         type: string;
     }>): string;
-    private loadCachedTechnologies;
-    private saveCachedTechnologies;
     formatPlatforms(platforms: PlatformInfo[]): string;
     getFramework(frameworkName: string): Promise<FrameworkData>;
     refreshFramework(frameworkName: string): Promise<FrameworkData>;
@@ -91,14 +93,5 @@ export declare class AppleDevDocsClient {
         platform?: string;
         symbolType?: string;
     }): Promise<SearchResult[]>;
-    searchGlobal(query: string, options?: {
-        maxResults?: number;
-        platform?: string;
-        symbolType?: string;
-    }): Promise<SearchResult[]>;
-    private createSearchPatterns;
-    private parseSearchQuery;
     private makeRequest;
-    private matchesSearch;
-    private scoreMatch;
 }

@@ -1,0 +1,7 @@
+src/
+*.ts
+*.tsconfig*
+.git/
+.github/
+node_modules/
+dist/tech/

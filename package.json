@@ -7,6 +7,15 @@
   "bin": {
     "apple-doc-mcp": "dist/index.js"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "package.json",
+    ".xo-config.js",
+    "technologies.json",
+    "mcp-config-example.json"
+  ],
   "keywords": [
     "mcp",
     "apple",

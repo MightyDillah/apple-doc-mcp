@@ -9,11 +9,12 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
   - It now asks you which doc is more relevant! and has very rudemntary fuzzy search but it works really well! suggestions welcome
   - THis should have been version one
   - Simplified MCP in so many ways that I am just kicking myself!
+  - Handlers now live in 'src/server/handlers/', so each tool is easy to read and evolve without touching the entrypoint.
 
 - 1.0.2 - Completely removed due to AI slop, sorry I merged without thoroughly going through this.
 - 1.0.1 – Initial release.
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 npm install
@@ -60,9 +61,3 @@ Configure your MCP client (example):
 - `current_technology` – show the current selection and quick next steps.
 - `search_symbols` – fuzzy keyword search within the active framework.
 - `get_documentation` – view symbol docs (relative names allowed).
-- `check_updates` – inspect git status for this repository.
-
-## 📦 Build & Maintenance
-- `pnpm build` – compile TypeScript to `dist/`.
-- `pnpm lint` – type-check and lint via `xo`.
-- Cached framework JSON files live under `dist/tech/` (ignored in git).
