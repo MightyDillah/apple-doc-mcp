@@ -2,7 +2,7 @@ export const header = (level: number, text: string): string => `${'#'.repeat(Mat
 
 export const bold = (label: string, value: string): string => `**${label}:** ${value}`;
 
-export const list = (items: string[], bullet: string = '•'): string => items.map(item => `${bullet} ${item}`).join('\n');
+export const list = (items: string[], bullet = '•'): string => items.map(item => `${bullet} ${item}`).join('\n');
 
 export const blankLine = (): string => '';
 

@@ -15,7 +15,7 @@ export class ServerState {
 	private activeTechnology?: Technology;
 	private activeFrameworkData?: FrameworkData;
 	private frameworkIndex?: Map<string, FrameworkIndexEntry>;
-	private expandedIdentifiers = new Set<string>();
+	private readonly expandedIdentifiers = new Set<string>();
 	private lastDiscovery?: LastDiscovery;
 
 	getActiveTechnology(): Technology | undefined {

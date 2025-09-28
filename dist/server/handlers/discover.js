@@ -43,13 +43,9 @@ export const buildDiscoverHandler = ({ client, state }) => async (args) => {
         if (description) {
             lines.push(`   ${trimWithEllipsis(description, 180)}`);
         }
-        lines.push(`   • **Identifier:** ${framework.identifier}`);
-        lines.push(`   • **Select:** \`choose_technology "${framework.title}"\``);
-        lines.push('');
+        lines.push(`   • **Identifier:** ${framework.identifier}`, `   • **Select:** \`choose_technology "${framework.title}"\``, '');
     }
-    lines.push(...formatPagination(query, currentPage, totalPages));
-    lines.push('\n## Next Step');
-    lines.push('Call `choose_technology` with the framework title or identifier to make it active.');
+    lines.push(...formatPagination(query, currentPage, totalPages), '\n## Next Step', 'Call `choose_technology` with the framework title or identifier to make it active.');
     return {
         content: [
             {

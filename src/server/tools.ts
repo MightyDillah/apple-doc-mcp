@@ -11,7 +11,7 @@ type ToolDefinition = {
 	name: string;
 	description: string;
 	inputSchema: Record<string, unknown>;
-	handler: (args: any) => Promise<{content: Array<{text: string; type: 'text'}>}>
+	handler: (args: any) => Promise<{content: Array<{text: string; type: 'text'}>}>;
 };
 
 export const registerTools = (server: Server, context: ServerContext) => {

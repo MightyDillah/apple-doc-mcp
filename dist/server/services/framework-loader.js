@@ -18,7 +18,10 @@ export const loadActiveFrameworkData = async ({ client, state }) => {
         return cached;
     }
     const identifierParts = activeTechnology.identifier.split('/');
-    const frameworkName = identifierParts[identifierParts.length - 1];
+    const frameworkName = identifierParts.at(-1);
+    if (!frameworkName) {
+        throw new McpError(ErrorCode.InvalidRequest, `Invalid technology identifier: ${activeTechnology.identifier}`);
+    }
     const data = await client.getFramework(frameworkName);
     state.setActiveFrameworkData(data);
     state.clearFrameworkIndex();
@@ -26,10 +29,16 @@ export const loadActiveFrameworkData = async ({ client, state }) => {
 };
 const buildEntry = (id, ref, extractText) => {
     const tokens = new Set();
-    tokenize(ref.title).forEach(token => tokens.add(token));
-    tokenize(ref.url).forEach(token => tokens.add(token));
+    for (const token of tokenize(ref.title)) {
+        tokens.add(token);
+    }
+    for (const token of tokenize(ref.url)) {
+        tokens.add(token);
+    }
     const abstractText = extractText(ref.abstract);
-    tokenize(abstractText).forEach(token => tokens.add(token));
+    for (const token of tokenize(abstractText)) {
+        tokens.add(token);
+    }
     return { id, ref, tokens: [...tokens] };
 };
 const processReferences = (references, index, extractText) => {
@@ -59,28 +68,37 @@ export const expandSymbolReferences = async (context, identifiers) => {
         throw new McpError(ErrorCode.InvalidRequest, 'No technology selected. Use `discover_technologies` then `choose_technology` first.');
     }
     const identifierParts = activeTechnology.identifier.split('/');
-    const frameworkName = identifierParts[identifierParts.length - 1];
+    const frameworkName = identifierParts.at(-1);
+    if (!frameworkName) {
+        throw new McpError(ErrorCode.InvalidRequest, `Invalid technology identifier: ${activeTechnology.identifier}`);
+    }
     const index = (await ensureFrameworkIndex(context));
-    for (const identifier of identifiers) {
-        if (state.hasExpandedIdentifier(identifier)) {
-            continue;
-        }
+    const identifiersToProcess = identifiers.filter(identifier => !state.hasExpandedIdentifier(identifier));
+    const promises = identifiersToProcess.map(async (identifier) => {
         try {
             const symbolPath = identifier
                 .replace('doc://com.apple.documentation/', '')
                 .replace(/^documentation\//, 'documentation/');
             const data = await client.getSymbol(symbolPath);
-            processReferences(data.references, index, client.extractText.bind(client));
-            state.markIdentifierExpanded(identifier);
+            return { data, identifier };
         }
         catch (error) {
             console.warn(`Failed to expand identifier ${identifier}:`, error instanceof Error ? error.message : String(error));
+            return null;
+        }
+    });
+    const results = await Promise.all(promises);
+    for (const result of results) {
+        if (result) {
+            const { data, identifier } = result;
+            processReferences(data.references, index, client.extractText.bind(client));
+            state.markIdentifierExpanded(identifier);
         }
     }
     return index;
 };
 export const getFrameworkIndexEntries = async (context) => {
     const index = await ensureFrameworkIndex(context);
-    return Array.from(index.values());
+    return [...index.values()];
 };
 //# sourceMappingURL=framework-loader.js.map

@@ -6,10 +6,11 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
 - 1.5.0 (Major update!)
   - Introduced per-technology caching, mandatory framework selection, and the guided discovery/search flow.
   - Now it doesnt spam the doc server, all tech is cached after first call making every search super efficient!
-  - It now asks you which doc is more relevant! and has very rudemntary fuzzy search but it works really well! suggestions welcome
-  - THis should have been version one
+  - Uses several search fallbacks to make sure it finds what youre looking for, and if it fails it'll do a regex to the entire technology and still give you suggestions!
+  - It now asks you which doc is more relevant! and has very rudemntary fuzzy search but it works really well!
   - Simplified MCP in so many ways that I am just kicking myself!
   - Handlers now live in 'src/server/handlers/', so each tool is easy to read and evolve without touching the entrypoint.
+  - This should have been version 1.0.0, there are still some kinks so please report them.
 
 - 1.0.2 - Completely removed due to AI slop, sorry I merged without thoroughly going through this.
 - 1.0.1 – Initial release.
@@ -19,6 +20,9 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
 ```bash
 npm install
 npm build
+```
+
+```"Use apple mcp select swiftui search tabbar"
 ```
 
 Configure your MCP client (example):

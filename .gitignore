@@ -102,3 +102,4 @@ test-*.js
 
 # Extra
 pnpm-lock.yaml
+dist

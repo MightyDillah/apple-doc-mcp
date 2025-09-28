@@ -7,17 +7,21 @@ const fuzzyScore = (a: string | undefined, b: string | undefined): number => {
 	if (!a || !b) {
 		return Number.POSITIVE_INFINITY;
 	}
+
 	const lowerA = a.toLowerCase();
 	const lowerB = b.toLowerCase();
 	if (lowerA === lowerB) {
 		return 0;
 	}
+
 	if (lowerA.startsWith(lowerB) || lowerB.startsWith(lowerA)) {
 		return 1;
 	}
+
 	if (lowerA.includes(lowerB) || lowerB.includes(lowerA)) {
 		return 2;
 	}
+
 	return 3;
 };
 
@@ -34,32 +38,30 @@ export const buildChooseTechnologyHandler = ({client, state}: ServerContext) =>
 	async (args: {name?: string; identifier?: string}): Promise<ToolResponse> => {
 		const {name, identifier} = args;
 		const technologies = await client.getTechnologies();
-	const candidates = Object.values(technologies).filter(
-		tech => typeof tech?.title === 'string' && typeof tech?.identifier === 'string',
-	);
+		const candidates = Object.values(technologies).filter(tech => typeof tech?.title === 'string' && typeof tech?.identifier === 'string');
 
-	let chosen = identifier
-		? candidates.find(tech => tech.identifier && identifier && tech.identifier.toLowerCase() === identifier.toLowerCase())
-		: undefined;
+		let chosen = identifier
+			? candidates.find(tech => tech.identifier?.toLowerCase() === identifier.toLowerCase())
+			: undefined;
 
-	if (!chosen && name) {
-		const lower = name.toLowerCase();
-		chosen = candidates.find(tech => tech.title && tech.title.toLowerCase() === lower);
-	}
+		if (!chosen && name) {
+			const lower = name.toLowerCase();
+			chosen = candidates.find(tech => tech.title && tech.title.toLowerCase() === lower);
+		}
 
-	if (!chosen && name) {
-		const scored = candidates
-			.map(tech => ({tech, score: fuzzyScore(tech.title, name)}))
-			.sort((a, b) => a.score - b.score);
-		chosen = scored[0]?.tech;
-	}
+		if (!chosen && name) {
+			const scored = candidates
+				.map(tech => ({tech, score: fuzzyScore(tech.title, name)}))
+				.sort((a, b) => a.score - b.score);
+			chosen = scored[0]?.tech;
+		}
 
-	if (!chosen) {
-		const searchTerm = (name ?? identifier ?? '').toLowerCase();
-		const suggestions = candidates
-			.filter(tech => tech.title && tech.title.toLowerCase().includes(searchTerm))
-			.slice(0, 5)
-			.map(tech => `• ${tech.title} — \`choose_technology "${tech.title}"\``);
+		if (!chosen) {
+			const searchTerm = (name ?? identifier ?? '').toLowerCase();
+			const suggestions = candidates
+				.filter(tech => tech.title?.toLowerCase().includes(searchTerm))
+				.slice(0, 5)
+				.map(tech => `• ${tech.title} — \`choose_technology "${tech.title}"\``);
 
 			const lines = [
 				header(1, '❌ Technology Not Found'),

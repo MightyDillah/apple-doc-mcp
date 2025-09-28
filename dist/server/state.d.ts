@@ -12,7 +12,7 @@ export declare class ServerState {
     private activeTechnology?;
     private activeFrameworkData?;
     private frameworkIndex?;
-    private expandedIdentifiers;
+    private readonly expandedIdentifiers;
     private lastDiscovery?;
     getActiveTechnology(): Technology | undefined;
     setActiveTechnology(technology: Technology | undefined): void;

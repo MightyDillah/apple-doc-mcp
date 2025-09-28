@@ -1,88 +1,14 @@
-export type PlatformInfo = {
-    name: string;
-    introducedAt: string;
-    beta?: boolean;
-};
-export type FrameworkData = {
-    abstract: Array<{
-        text: string;
-        type: string;
-    }>;
-    metadata: {
-        platforms: PlatformInfo[];
-        role: string;
-        title: string;
-    };
-    references: Record<string, ReferenceData>;
-    topicSections: TopicSection[];
-};
-export type SearchResult = {
-    description: string;
-    framework: string;
-    path: string;
-    platforms?: string;
-    symbolKind?: string;
-    title: string;
-};
-export type SymbolData = {
-    abstract: Array<{
-        text: string;
-        type: string;
-    }>;
-    metadata: {
-        platforms: PlatformInfo[];
-        symbolKind: string;
-        title: string;
-    };
-    primaryContentSections: any[];
-    references: Record<string, ReferenceData>;
-    topicSections: TopicSection[];
-};
-export type Technology = {
-    abstract: Array<{
-        text: string;
-        type: string;
-    }>;
-    identifier: string;
-    kind: string;
-    role: string;
-    title: string;
-    url: string;
-};
-export type TopicSection = {
-    anchor?: string;
-    identifiers: string[];
-    title: string;
-};
-export type ReferenceData = {
-    title: string;
-    kind?: string;
-    abstract?: Array<{
-        text: string;
-        type: string;
-    }>;
-    platforms?: PlatformInfo[];
-    url: string;
-};
+import type { FrameworkData, SymbolData, Technology, SearchResult } from './apple-client/types/index.js';
+export type { PlatformInfo, FrameworkData, SearchResult, SymbolData, Technology, TopicSection, ReferenceData, } from './apple-client/types/index.js';
 export declare class AppleDevDocsClient {
-    private readonly cache;
-    private readonly cacheTimeout;
-    private readonly docsDir;
-    private readonly technologiesCachePath;
-    private sanitizeFrameworkName;
-    private ensureDocsDir;
-    private getDocsPath;
-    private loadDocsFramework;
-    private saveDocsFramework;
-    private saveSymbolCache;
-    private loadSymbolCache;
-    private loadCachedTechnologies;
-    private saveCachedTechnologies;
-    extractText(abstract?: Array<{
+    extractText: (abstract?: Array<{
         text: string;
         type: string;
-    }>): string;
-    formatPlatforms(platforms: PlatformInfo[]): string;
+    }>) => string;
+    formatPlatforms: (platforms: import("./apple-client/types/index.js").PlatformInfo[]) => string;
+    private readonly httpClient;
+    private readonly fileCache;
+    constructor();
     getFramework(frameworkName: string): Promise<FrameworkData>;
     refreshFramework(frameworkName: string): Promise<FrameworkData>;
     getSymbol(path: string): Promise<SymbolData>;
@@ -93,5 +19,4 @@ export declare class AppleDevDocsClient {
         platform?: string;
         symbolType?: string;
     }): Promise<SearchResult[]>;
-    private makeRequest;
 }

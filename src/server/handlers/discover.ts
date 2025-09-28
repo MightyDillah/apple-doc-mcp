@@ -11,6 +11,7 @@ const formatPagination = (query: string | undefined, currentPage: number, totalP
 	if (currentPage > 1) {
 		items.push(`• Previous: \`discover_technologies { "query": "${safeQuery}", "page": ${currentPage - 1} }\``);
 	}
+
 	if (currentPage < totalPages) {
 		items.push(`• Next: \`discover_technologies { "query": "${safeQuery}", "page": ${currentPage + 1} }\``);
 	}
@@ -29,8 +30,7 @@ export const buildDiscoverHandler = ({client, state}: ServerContext) =>
 			const lowerQuery = query.toLowerCase();
 			filtered = frameworks.filter(tech =>
 				tech.title.toLowerCase().includes(lowerQuery)
-				|| client.extractText(tech.abstract).toLowerCase().includes(lowerQuery),
-			);
+				|| client.extractText(tech.abstract).toLowerCase().includes(lowerQuery));
 		}
 
 		const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -56,14 +56,11 @@ export const buildDiscoverHandler = ({client, state}: ServerContext) =>
 			if (description) {
 				lines.push(`   ${trimWithEllipsis(description, 180)}`);
 			}
-			lines.push(`   • **Identifier:** ${framework.identifier}`);
-			lines.push(`   • **Select:** \`choose_technology "${framework.title}"\``);
-			lines.push('');
+
+			lines.push(`   • **Identifier:** ${framework.identifier}`, `   • **Select:** \`choose_technology "${framework.title}"\``, '');
 		}
 
-		lines.push(...formatPagination(query, currentPage, totalPages));
-		lines.push('\n## Next Step');
-		lines.push('Call `choose_technology` with the framework title or identifier to make it active.');
+		lines.push(...formatPagination(query, currentPage, totalPages), '\n## Next Step', 'Call `choose_technology` with the framework title or identifier to make it active.');
 
 		return {
 			content: [

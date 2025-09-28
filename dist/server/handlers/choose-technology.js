@@ -27,7 +27,7 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
     const technologies = await client.getTechnologies();
     const candidates = Object.values(technologies).filter(tech => typeof tech?.title === 'string' && typeof tech?.identifier === 'string');
     let chosen = identifier
-        ? candidates.find(tech => tech.identifier && identifier && tech.identifier.toLowerCase() === identifier.toLowerCase())
+        ? candidates.find(tech => tech.identifier?.toLowerCase() === identifier.toLowerCase())
         : undefined;
     if (!chosen && name) {
         const lower = name.toLowerCase();
@@ -42,7 +42,7 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
     if (!chosen) {
         const searchTerm = (name ?? identifier ?? '').toLowerCase();
         const suggestions = candidates
-            .filter(tech => tech.title && tech.title.toLowerCase().includes(searchTerm))
+            .filter(tech => tech.title?.toLowerCase().includes(searchTerm))
             .slice(0, 5)
             .map(tech => `• ${tech.title} — \`choose_technology "${tech.title}"\``);
         const lines = [

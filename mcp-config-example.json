@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "apple-doc-mcp": {
-      "command": "node",
-      "args": ["/path/to/apple-doc-mcp/dist/index.js"]
-    }
-  }
-} 
