@@ -26,7 +26,7 @@ Using npx (recommended):
 ```json
 {
   "mcpServers": {
-    "apple-doc": {
+    "apple-docs": {
       "command": "npx",
       "args": [
         "apple-doc-mcp-server@latest"
@@ -36,11 +36,15 @@ Using npx (recommended):
 }
 ```
 
+Claude Code
+```claude mcp add apple-docs -- npx apple-doc-mcp-server@latest
+```
+
 Or using node with the built file:
 ```json
 {
   "mcpServers": {
-    "apple-doc-mcp": {
+    "apple-docs": {
       "command": "node",
       "args": ["/absolute/path/to/apple-doc-mcp/dist/index.js"]
     }
