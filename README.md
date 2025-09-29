@@ -36,8 +36,9 @@ Using npx (recommended):
 }
 ```
 
-Claude Code
-```claude mcp add apple-docs -- npx apple-doc-mcp-server@latest
+Claude Code:
+```bash
+claude mcp add apple-docs -- npx apple-doc-mcp-server@latest
 ```
 
 Or using node with the built file:
