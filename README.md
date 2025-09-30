@@ -2,9 +2,9 @@
 
 A Model Context Protocol (MCP) server that provides seamless access to Apple's Developer Documentation directly within your AI coding assistant.
 
-**Note:** Hey guys, thanks for checking out this MCP! I've been working on this MCP on a regular basis, and as such its getting really expensive to build it and improve it to work on different platforms, all while adding new features (tokens aint cheap ya'll). 
+**Note:** Hey guys, thanks for checking out this MCP! Since I've been working on it on a regular basis, and as such its getting really expensive to build it and improve it to work on different platforms, all while adding new features (tokens aint cheap ya'll). 
 
-if you find this MCP helpful, I'd really apperciate if you clicked on the [❤️ Sponsor](https://github.com/sponsors/MightyDillah) button up there, any contribution is apperciated! thanks.
+if you find this MCP helpful, I'd really apperciate it if you clicked on the [❤️ Sponsor](https://github.com/sponsors/MightyDillah) button up there, any contribution is apperciated! thanks.
 
 ## 📋 Changelog
 - 1.5.1 (Major update!)
