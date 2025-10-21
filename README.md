@@ -10,7 +10,7 @@ if you find this MCP helpful, I'd really apperciate it if you clicked on the [‚ù
 
 Please enjoy the new update the new symbol search is more robust! Thank you to @christopherbattlefrontlegal and @Indading for sponsoring! you guys rock. Please contribute what you can, my aim is to get $100 a month so i can at least fund a claude code account which I will dedicate only to this project.
 
-- 1.8.8
+- 1.8.9
   - MAJOR FIX: Fixed critical cache inconsistency causing unreliable symbol search results
   - MAJOR FIX: Implemented stateful LocalSymbolIndex to eliminate index rebuilds on every search
   - MAJOR FIX: Fixed technology filtering in symbol search - now only searches within selected technology
