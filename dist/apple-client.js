@@ -39,23 +39,47 @@ export class AppleDevDocsClient {
     async getTechnologies() {
         // Try to load from persistent cache first
         const cached = await this.fileCache.loadTechnologies();
-        if (cached) {
+        if (cached && Object.keys(cached).length > 0) {
             return cached;
         }
         // If no cache, download from API and save
-        const data = await this.httpClient.getDocumentation('documentation/technologies');
-        if (data) {
-            await this.fileCache.saveTechnologies(data);
+        const response = await this.httpClient.getDocumentation('documentation/technologies');
+        // The API returns a structure with 'references' containing the technologies
+        let technologies = {};
+        if (response && typeof response === 'object') {
+            if ('references' in response && response.references) {
+                technologies = response.references;
+            }
+            else if (typeof response === 'object' && !Array.isArray(response)) {
+                // Fallback: treat the whole response as technologies if no references key
+                technologies = response;
+            }
         }
-        return data || {};
+        // Save the extracted technologies (not the full response)
+        if (Object.keys(technologies).length > 0) {
+            await this.fileCache.saveTechnologies(technologies);
+        }
+        return technologies;
     }
     // Force refresh technologies cache (user-invoked)
     async refreshTechnologies() {
-        const data = await this.httpClient.getDocumentation('documentation/technologies');
-        if (data) {
-            await this.fileCache.saveTechnologies(data);
+        const response = await this.httpClient.getDocumentation('documentation/technologies');
+        // The API returns a structure with 'references' containing the technologies
+        let technologies = {};
+        if (response && typeof response === 'object') {
+            if ('references' in response && response.references) {
+                technologies = response.references;
+            }
+            else if (typeof response === 'object' && !Array.isArray(response)) {
+                // Fallback: treat the whole response as technologies if no references key
+                technologies = response;
+            }
         }
-        return data || {};
+        // Save the extracted technologies (not the full response)
+        if (Object.keys(technologies).length > 0) {
+            await this.fileCache.saveTechnologies(technologies);
+        }
+        return technologies;
     }
     async searchFramework(frameworkName, query, options = {}) {
         const { maxResults = 20 } = options;

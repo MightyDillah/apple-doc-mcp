@@ -26,21 +26,30 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
     const { name, identifier } = args;
     const technologies = await client.getTechnologies();
     const candidates = Object.values(technologies).filter(tech => typeof tech?.title === 'string' && typeof tech?.identifier === 'string');
-    let chosen = identifier
-        ? candidates.find(tech => tech.identifier?.toLowerCase() === identifier.toLowerCase())
-        : undefined;
-    if (!chosen && name) {
-        const lower = name.toLowerCase();
-        chosen = candidates.find(tech => tech.title && tech.title.toLowerCase() === lower);
+    // Normalize search terms - case insensitive
+    const normalizedName = name?.toLowerCase().trim();
+    const normalizedIdentifier = identifier?.toLowerCase().trim();
+    let chosen = undefined;
+    // Try identifier first (most specific)
+    if (normalizedIdentifier) {
+        chosen = candidates.find(tech => tech.identifier?.toLowerCase() === normalizedIdentifier);
     }
-    if (!chosen && name) {
+    // Try exact name match (case-insensitive)
+    if (!chosen && normalizedName) {
+        chosen = candidates.find(tech => tech.title?.toLowerCase() === normalizedName);
+    }
+    // Try fuzzy match on name only if we have a name
+    if (!chosen && normalizedName) {
         const scored = candidates
             .map(tech => ({ tech, score: fuzzyScore(tech.title, name) }))
             .sort((a, b) => a.score - b.score);
-        chosen = scored[0]?.tech;
+        // Only use fuzzy match if it's reasonably good (score < 3)
+        if (scored[0] && scored[0].score < 3) {
+            chosen = scored[0].tech;
+        }
     }
     if (!chosen) {
-        const searchTerm = (name ?? identifier ?? '').toLowerCase();
+        const searchTerm = normalizedName ?? normalizedIdentifier ?? '';
         const suggestions = candidates
             .filter(tech => tech.title?.toLowerCase().includes(searchTerm))
             .slice(0, 5)

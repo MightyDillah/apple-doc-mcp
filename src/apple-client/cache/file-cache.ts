@@ -12,7 +12,7 @@ export class FileCache {
 
 	constructor(baseDir?: string) {
 		// Use MCP's own directory structure instead of process.cwd()
-		const mcpRoot = join(__dirname, '../../../..');
+		const mcpRoot = join(__dirname, '../../..');
 		this.docsDir = join(baseDir ?? mcpRoot, 'cache');
 		this.technologiesCachePath = join(this.docsDir, 'technologies.json');
 	}
@@ -63,17 +63,37 @@ export class FileCache {
 			const parsed = JSON.parse(data) as unknown;
 
 			// Handle different possible formats of the cached data
-			if (parsed && typeof parsed === 'object' && 'references' in parsed) {
-				const wrapper = parsed as {references?: Record<string, Technology>};
-				return wrapper.references ?? {};
+			if (parsed && typeof parsed === 'object') {
+				// First try: data has a 'references' property (new format from API)
+				if ('references' in parsed) {
+					const wrapper = parsed as {references?: Record<string, Technology>};
+					const refs = wrapper.references ?? {};
+					// Validate that we got actual technology data
+					if (Object.keys(refs).length > 0) {
+						return refs;
+					}
+				}
+
+				// Second try: data is already the references object (legacy format)
+				const direct = parsed as Record<string, Technology>;
+				if (Object.keys(direct).length > 0) {
+					// Check if it looks like technology data (has identifier/title fields)
+					const firstValue = Object.values(direct)[0];
+					if (firstValue && typeof firstValue === 'object' && ('identifier' in firstValue || 'title' in firstValue)) {
+						return direct;
+					}
+				}
 			}
 
-			return parsed as Record<string, Technology>;
+			// If we got here, the cache might be corrupted or empty
+			console.warn('Technologies cache exists but appears invalid, will refetch');
+			return undefined;
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
 				return undefined;
 			}
 
+			console.error('Error loading technologies cache:', error);
 			throw error;
 		}
 	}

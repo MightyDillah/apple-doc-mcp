@@ -26,7 +26,7 @@ export class LocalSymbolIndex {
 	private indexBuilt = false;
 
 	constructor(private readonly client: AppleDevDocsClient, technologyIdentifier?: string) {
-		this.cacheDir = join(__dirname, '../../../docs');
+		this.cacheDir = join(__dirname, '../../../cache');
 		this.technologyIdentifier = technologyIdentifier;
 	}
 

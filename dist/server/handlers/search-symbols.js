@@ -1,13 +1,9 @@
 import { LocalSymbolIndex } from '../services/local-symbol-index.js';
-import { ComprehensiveSymbolDownloader } from '../services/comprehensive-symbol-downloader.js';
 import { header, bold } from '../markdown.js';
 import { buildNoTechnologyMessage } from './no-technology.js';
 export const buildSearchSymbolsHandler = (context) => {
     const { client, state } = context;
     const noTechnology = buildNoTechnologyMessage(context);
-    // Create local symbol index and downloader
-    const localIndex = new LocalSymbolIndex(client);
-    const downloader = new ComprehensiveSymbolDownloader(client);
     return async (args) => {
         const activeTechnology = state.getActiveTechnology();
         if (!activeTechnology) {
@@ -28,22 +24,24 @@ export const buildSearchSymbolsHandler = (context) => {
                 console.warn('Failed to build local symbol index:', error instanceof Error ? error.message : String(error));
             }
         }
-        // If we have very few symbols, try downloading more with user feedback
-        if (techLocalIndex.getSymbolCount() < 50) {
-            try {
-                console.log('🔄 Downloading additional symbol data...');
-                console.log('⏳ This may take a moment for comprehensive results...');
-                await downloader.downloadAllSymbols(context);
-                console.log('🔄 Rebuilding index with new data...');
-                await techLocalIndex.buildIndexFromCache(); // Rebuild index with new data
-                console.log(`✅ Index updated with ${techLocalIndex.getSymbolCount()} symbols`);
-            }
-            catch (error) {
-                console.warn('Failed to download comprehensive symbols:', error instanceof Error ? error.message : String(error));
-            }
+        // Comprehensive download disabled - it was broken and blocking
+        // If local index is empty/small, use direct framework search as fallback
+        let symbolResults = techLocalIndex.search(query, maxResults * 2);
+        if (symbolResults.length === 0 && techLocalIndex.getSymbolCount() < 50) {
+            // Fallback: search framework.references directly (fast, no download needed)
+            console.log('📋 Using framework references for search...');
+            const frameworkResults = await client.searchFramework(activeTechnology.title, query, { maxResults: maxResults * 2, platform, symbolType });
+            symbolResults = frameworkResults.map(r => ({
+                id: r.path || r.title,
+                title: r.title,
+                path: r.path || '',
+                kind: r.symbolKind || 'symbol',
+                abstract: r.description,
+                platforms: r.platforms ? r.platforms.split(', ') : [],
+                tokens: [],
+                filePath: ''
+            }));
         }
-        // Search using technology-specific local index
-        const symbolResults = techLocalIndex.search(query, maxResults * 2);
         // Apply filters
         let filteredResults = symbolResults;
         if (platform) {
