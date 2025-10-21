@@ -10,9 +10,11 @@ if you find this MCP helpful, I'd really apperciate it if you clicked on the [‚ù
 
 Please enjoy the new update the new symbol search is more robus! Thank you to @christopherbattlefrontlegal and @Indading for sponsoring! you guys rock. Please contribute what you can, my aim is to get $100 a month so i can at least fund a claude code account which I will dedicate only to this project.
 
-- 1.8.0
+- 1.8.1
   - MAJOR ENHANCEMENT: Comprehensive symbol search system with automatic downloading
   - MAJOR FIX: Fixed Apple documentation API endpoint issue - now uses correct symbol/tutorials/data endpoint
+  - MAJOR FIX: Fixed technology filtering in symbol search - now only searches within selected technology
+  - MAJOR FIX: Fixed search returning irrelevant results from other Apple frameworks (e.g., EnergyKit when searching SwiftUI)
   - Added wildcard search support (* and ? patterns) for flexible symbol discovery
   - Implemented comprehensive symbol downloader with recursive symbol fetching
   - Added local symbol index for fast cached searches
@@ -26,6 +28,12 @@ Please enjoy the new update the new symbol search is more robus! Thank you to @c
   - Fixed technology selection persistence issues
   - Fixed hardcoded server version to dynamically read from package.json
   - Added get_version tool to expose version information
+  - Added technology-aware symbol indexing to prevent cross-framework contamination
+  - Enhanced search fallback logic with smart detection of specific symbol names
+  - Improved error messages with direct suggestions to use get_documentation for known symbols
+  - Added result validation to detect and warn about irrelevant search results
+  - Updated tool descriptions to clarify when to use search vs direct documentation lookup
+  - Enhanced search handler to create technology-specific symbol indexes
 - 1.6.2
   - Fixed hardcoded server version to dynamically read from package.json
   - Added get_version tool to expose version information

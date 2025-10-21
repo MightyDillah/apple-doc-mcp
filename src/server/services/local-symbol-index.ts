@@ -22,10 +22,12 @@ export class LocalSymbolIndex {
 	private symbols: Map<string, LocalSymbolIndexEntry> = new Map();
 	private client: AppleDevDocsClient;
 	private cacheDir: string;
+	private technologyIdentifier?: string;
 
-	constructor(client: AppleDevDocsClient) {
+	constructor(client: AppleDevDocsClient, technologyIdentifier?: string) {
 		this.client = client;
 		this.cacheDir = join(__dirname, '../../../docs');
+		this.technologyIdentifier = technologyIdentifier;
 	}
 
 	private tokenize(text: string): string[] {
@@ -65,6 +67,15 @@ export class LocalSymbolIndex {
 		const abstract = this.client.extractText(data.abstract);
 		const platforms = data.metadata?.platforms?.map(p => p.name).filter(Boolean) || [];
 		
+		// Filter by technology if specified
+		if (this.technologyIdentifier && path) {
+			const technologyPath = this.technologyIdentifier.toLowerCase();
+			const symbolPath = path.toLowerCase();
+			if (!symbolPath.includes(technologyPath)) {
+				return; // Skip symbols not from the selected technology
+			}
+		}
+		
 		// Create comprehensive tokens
 		const tokens = new Set<string>();
 		this.tokenize(title).forEach(token => tokens.add(token));
@@ -93,6 +104,15 @@ export class LocalSymbolIndex {
 		if (data.references) {
 			for (const [refId, ref] of Object.entries(data.references)) {
 				if (ref.kind === 'symbol' && ref.title) {
+					// Filter references by technology if specified
+					if (this.technologyIdentifier && ref.url) {
+						const technologyPath = this.technologyIdentifier.toLowerCase();
+						const refPath = ref.url.toLowerCase();
+						if (!refPath.includes(technologyPath)) {
+							continue; // Skip references not from the selected technology
+						}
+					}
+
 					const refTokens = new Set<string>();
 					this.tokenize(ref.title).forEach(token => refTokens.add(token));
 					this.tokenize(ref.url || '').forEach(token => refTokens.add(token));
