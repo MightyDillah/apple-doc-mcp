@@ -6,6 +6,7 @@ import {buildChooseTechnologyHandler} from './handlers/choose-technology.js';
 import {buildCurrentTechnologyHandler} from './handlers/current-technology.js';
 import {buildGetDocumentationHandler} from './handlers/get-documentation.js';
 import {buildSearchSymbolsHandler} from './handlers/search-symbols.js';
+import {buildVersionHandler} from './handlers/version.js';
 
 type ToolDefinition = {
 	name: string;
@@ -85,7 +86,7 @@ export const registerTools = (server: Server, context: ServerContext) => {
 		},
 		{
 			name: 'search_symbols',
-			description: 'Search symbols within the currently selected technology (supports fuzzy keywords)',
+			description: 'Search symbols within the currently selected technology (supports wildcards: * and ?)',
 			inputSchema: {
 				type: 'object',
 				required: ['query'],
@@ -100,7 +101,7 @@ export const registerTools = (server: Server, context: ServerContext) => {
 					},
 					query: {
 						type: 'string',
-						description: 'Search keywords (supports wildcards)',
+						description: 'Search keywords with wildcard support (* for any characters, ? for single character)',
 					},
 					symbolType: {
 						type: 'string',
@@ -109,6 +110,16 @@ export const registerTools = (server: Server, context: ServerContext) => {
 				},
 			},
 			handler: buildSearchSymbolsHandler(context),
+		},
+		{
+			name: 'get_version',
+			description: 'Get the current version information of the Apple Doc MCP server',
+			inputSchema: {
+				type: 'object',
+				required: [],
+				properties: {},
+			},
+			handler: buildVersionHandler(),
 		},
 	];
 

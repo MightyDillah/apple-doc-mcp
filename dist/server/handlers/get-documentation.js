@@ -36,7 +36,7 @@ export const buildGetDocumentationHandler = (context) => {
     return async ({ path }) => {
         const activeTechnology = state.getActiveTechnology();
         if (!activeTechnology) {
-            return noTechnology();
+            return await noTechnology();
         }
         const framework = await loadActiveFrameworkData(context);
         const identifierParts = activeTechnology.identifier.split('/');

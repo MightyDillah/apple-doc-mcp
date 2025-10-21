@@ -48,7 +48,7 @@ export const buildGetDocumentationHandler = (context: ServerContext) => {
 	return async ({path}: {path: string}): Promise<ToolResponse> => {
 		const activeTechnology = state.getActiveTechnology();
 		if (!activeTechnology) {
-			return noTechnology();
+			return await noTechnology();
 		}
 
 		const framework = await loadActiveFrameworkData(context);

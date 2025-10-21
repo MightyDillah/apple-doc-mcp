@@ -1,74 +1,102 @@
 import type {ServerContext, ToolResponse} from '../context.js';
-import {ensureFrameworkIndex, expandSymbolReferences, loadActiveFrameworkData} from '../services/framework-loader.js';
+import {LocalSymbolIndex} from '../services/local-symbol-index.js';
+import {ComprehensiveSymbolDownloader} from '../services/comprehensive-symbol-downloader.js';
 import {header, bold} from '../markdown.js';
 import {buildNoTechnologyMessage} from './no-technology.js';
-import type {RankedReference, HierarchicalSearchResult, SearchFilters} from './search/types.js';
-import {collectMatches} from './search/scoring.js';
-import {performFallbackSearches} from './search/strategies/fallback-search.js';
-import {buildMatchLines} from './search/formatters/match-formatter.js';
-import {buildFallbackLines} from './search/formatters/fallback-formatter.js';
 
 export const buildSearchSymbolsHandler = (context: ServerContext) => {
 	const {client, state} = context;
 	const noTechnology = buildNoTechnologyMessage(context);
+	
+	// Create local symbol index and downloader
+	const localIndex = new LocalSymbolIndex(client);
+	const downloader = new ComprehensiveSymbolDownloader(client);
 
 	return async (args: {maxResults?: number; platform?: string; query: string; symbolType?: string}): Promise<ToolResponse> => {
 		const activeTechnology = state.getActiveTechnology();
 		if (!activeTechnology) {
-			return noTechnology();
+			return await noTechnology();
 		}
 
 		const {query, maxResults = 20, platform, symbolType} = args;
-		let index = await ensureFrameworkIndex(context);
-		let entries = [...index.values()];
-		const filters: SearchFilters = {platform, symbolType};
-		let matches = collectMatches(entries, query, maxResults * 2, filters);
 
-		if (matches.length === 0) {
-			const framework = await loadActiveFrameworkData(context);
-			// Expand more comprehensive set of identifiers for better coverage
-			const nestedIdentifiers = framework.topicSections
-				.flatMap(section => section.identifiers ?? [])
-				.slice(0, 300); // Increased from 200 for better coverage
-			
-			if (nestedIdentifiers.length > 0) {
-				index = await expandSymbolReferences(context, nestedIdentifiers);
-				entries = [...index.values()];
-				matches = collectMatches(entries, query, maxResults * 2, filters);
+		// Build local index from cached files if not already built
+		if (localIndex.getSymbolCount() === 0) {
+			try {
+				await localIndex.buildIndexFromCache();
+			} catch (error) {
+				console.warn('Failed to build local symbol index:', error instanceof Error ? error.message : String(error));
 			}
 		}
 
-		let fallbackResults: HierarchicalSearchResult[] = [];
-		let usedFallback = false;
-
-		if (matches.length === 0) {
-			usedFallback = true;
-			fallbackResults = await performFallbackSearches(context, query, activeTechnology, {maxResults, platform, symbolType});
+		// If we have very few symbols, try downloading more
+		if (localIndex.getSymbolCount() < 50) {
+			try {
+				console.log('Downloading comprehensive symbol data...');
+				await downloader.downloadAllSymbols(context);
+				await localIndex.buildIndexFromCache(); // Rebuild index with new data
+			} catch (error) {
+				console.warn('Failed to download comprehensive symbols:', error instanceof Error ? error.message : String(error));
+			}
 		}
 
-		matches = matches.slice(0, maxResults);
+		// Search using local index
+		const symbolResults = localIndex.search(query, maxResults * 2);
+		
+		// Apply filters
+		let filteredResults = symbolResults;
+		if (platform) {
+			const platformLower = platform.toLowerCase();
+			filteredResults = filteredResults.filter(result => 
+				result.platforms.some(p => p.toLowerCase().includes(platformLower))
+			);
+		}
+		
+		if (symbolType) {
+			const typeLower = symbolType.toLowerCase();
+			filteredResults = filteredResults.filter(result => 
+				result.kind.toLowerCase().includes(typeLower)
+			);
+		}
+
+		filteredResults = filteredResults.slice(0, maxResults);
 
 		const lines = [
 			header(1, `🔍 Search Results for "${query}"`),
 			'',
 			bold('Technology', activeTechnology.title),
-			bold('Matches', matches.length.toString()),
+			bold('Matches', filteredResults.length.toString()),
+			bold('Total Symbols Indexed', localIndex.getSymbolCount().toString()),
 			'',
 			header(2, 'Symbols'),
 			'',
 		];
 
-		lines.push(...buildMatchLines(matches, client));
-
-		if (matches.length === 0) {
+		if (filteredResults.length > 0) {
+			for (const result of filteredResults) {
+				const platforms = result.platforms.length > 0 ? result.platforms.join(', ') : 'All platforms';
+				lines.push(
+					`### ${result.title}`,
+					`   • **Kind:** ${result.kind}`,
+					`   • **Path:** ${result.path}`,
+					`   • **Platforms:** ${platforms}`,
+					`   ${result.abstract}`,
+					''
+				);
+			}
+		} else {
 			lines.push(
 				'No symbols matched those terms within this technology.',
-				'Try broader keywords (e.g. "tab" instead of "tabbar"), explore synonyms ("sheet" vs "modal"), or inspect sections in `discover_technologies`.',
+				'',
+				'**Search Tips:**',
+				'• Try wildcards: `Grid*` or `*Item`',
+				'• Use broader keywords: "grid" instead of "griditem"',
+				'• Check spelling and try synonyms',
+				'',
+				'**Note:** If this is your first search, symbols are being downloaded in the background.',
+				'Try searching again in a few moments for more comprehensive results.',
+				''
 			);
-		}
-
-		if (usedFallback && fallbackResults.length > 0) {
-			lines.push(...buildFallbackLines(fallbackResults));
 		}
 
 		return {

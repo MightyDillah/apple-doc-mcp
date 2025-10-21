@@ -1,21 +1,76 @@
-import { header } from '../markdown.js';
-export const buildNoTechnologyMessage = ({ state }) => () => {
+import { header, bold } from '../markdown.js';
+export const buildNoTechnologyMessage = ({ client, state }) => async () => {
     const lastDiscovery = state.getLastDiscovery();
+    // Get available technologies for better guidance
+    let availableTechnologies = [];
+    try {
+        const technologies = await client.getTechnologies();
+        // Filter out invalid entries and get only proper technologies
+        availableTechnologies = Object.values(technologies)
+            .filter(tech => tech.title && tech.kind === 'symbol' && tech.role === 'collection')
+            .slice(0, 8)
+            .map(t => t.title);
+    }
+    catch (error) {
+        console.warn('Failed to get technologies for error message:', error);
+    }
     const lines = [
-        header(1, '🚦 Technology Not Selected'),
-        'Before you can search or view documentation, choose a framework/technology.',
+        header(1, '🚫 Search Cannot Proceed - No Technology Selected'),
         '',
-        header(2, 'How to get started'),
-        '• `discover_technologies { "query": "swift" }` — narrow the catalogue with a keyword',
-        '• `choose_technology "SwiftUI"` — select the framework you want to explore',
-        '• `search_symbols { "query": "tab view layout" }` — run focused keyword searches',
+        bold('❌ IMPORTANT:', 'Symbol searches and documentation lookups CANNOT work without first selecting a technology.'),
         '',
-        '**Search tips:** start broad ("tab", "animation"), avoid punctuation, and try synonyms ("toolbar" vs "tabbar").',
+        'This is a required step because Apple documentation is organized by technology/framework.',
+        '',
+        header(2, '🔧 Required Steps'),
+        '',
+        bold('Step 1:', 'Discover available technologies'),
+        '• `discover_technologies` — see all available Apple technologies',
+        '• `discover_technologies { "query": "swift" }` — filter by keyword',
+        '• `discover_technologies { "query": "ui" }` — find UI frameworks',
+        '',
+        bold('Step 2:', 'Choose a technology'),
+        '• `choose_technology { "name": "SwiftUI" }` — select SwiftUI',
+        '• `choose_technology { "name": "UIKit" }` — select UIKit',
+        '• `choose_technology { "name": "AppKit" }` — select AppKit',
+        '',
+        bold('Step 3:', 'Now you can search'),
+        '• `search_symbols { "query": "Button" }` — search for symbols',
+        '• `search_symbols { "query": "Grid*" }` — use wildcards',
+        '• `get_documentation { "path": "View" }` — get detailed docs',
+        '',
+        header(2, '📚 Available Technologies'),
     ];
+    if (availableTechnologies.length > 0) {
+        lines.push('');
+        lines.push('Popular technologies you can choose from:');
+        availableTechnologies.forEach(tech => {
+            lines.push(`• **${tech}** — \`choose_technology { "name": "${tech}" }\``);
+        });
+        if (availableTechnologies.length === 8) {
+            lines.push('• **...and many more** — use `discover_technologies` to see all options');
+        }
+    }
+    else {
+        lines.push('');
+        lines.push('Use `discover_technologies` to see all available Apple technologies.');
+    }
+    lines.push('');
+    lines.push(header(2, '💡 Quick Start Examples'));
+    lines.push('');
+    lines.push('**For SwiftUI development:**');
+    lines.push('1. `discover_technologies { "query": "swiftui" }`');
+    lines.push('2. `choose_technology { "name": "SwiftUI" }`');
+    lines.push('3. `search_symbols { "query": "Button" }`');
+    lines.push('');
+    lines.push('**For UIKit development:**');
+    lines.push('1. `discover_technologies { "query": "uikit" }`');
+    lines.push('2. `choose_technology { "name": "UIKit" }`');
+    lines.push('3. `search_symbols { "query": "UIButton" }`');
     if (lastDiscovery?.results?.length) {
-        lines.push('', '### Recently discovered frameworks');
-        for (const result of lastDiscovery.results.slice(0, 5)) {
-            lines.push(`• ${result.title} (\`choose_technology "${result.title}"\`)`);
+        lines.push('');
+        lines.push(header(2, '🔄 Recently Discovered'));
+        for (const result of lastDiscovery.results.slice(0, 3)) {
+            lines.push(`• **${result.title}** — \`choose_technology { "name": "${result.title}" }\``);
         }
     }
     return {
