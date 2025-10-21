@@ -1,21 +1,26 @@
 import {promises as fs} from 'node:fs';
-import {join} from 'node:path';
-import process from 'node:process';
+import {join, dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import type {FrameworkData, SymbolData, Technology} from '../types/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export class FileCache {
 	private readonly docsDir: string;
 	private readonly technologiesCachePath: string;
 
-	constructor(baseDir: string = process.cwd()) {
-		this.docsDir = join(baseDir, 'docs');
+	constructor(baseDir?: string) {
+		// Use MCP's own directory structure instead of process.cwd()
+		const mcpRoot = join(__dirname, '../../../..');
+		this.docsDir = join(baseDir || mcpRoot, 'cache');
 		this.technologiesCachePath = join(this.docsDir, 'technologies.json');
 	}
 
 	async loadFramework(frameworkName: string): Promise<FrameworkData | undefined> {
-		await this.ensureDocsDir();
+		await this.ensureCacheDir();
 		try {
-			const raw = await fs.readFile(this.getDocsPath(frameworkName), 'utf8');
+			const raw = await fs.readFile(this.getCachePath(frameworkName), 'utf8');
 			return JSON.parse(raw) as FrameworkData;
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
@@ -27,8 +32,8 @@ export class FileCache {
 	}
 
 	async saveFramework(frameworkName: string, data: FrameworkData): Promise<void> {
-		await this.ensureDocsDir();
-		await fs.writeFile(this.getDocsPath(frameworkName), JSON.stringify(data, null, 2));
+		await this.ensureCacheDir();
+		await fs.writeFile(this.getCachePath(frameworkName), JSON.stringify(data, null, 2));
 	}
 
 	async loadSymbol(path: string): Promise<SymbolData | undefined> {
@@ -46,13 +51,13 @@ export class FileCache {
 	}
 
 	async saveSymbol(path: string, data: SymbolData): Promise<void> {
-		await this.ensureDocsDir();
+		await this.ensureCacheDir();
 		const safePath = path.replaceAll('/', '__');
 		await fs.writeFile(join(this.docsDir, `${safePath}.json`), JSON.stringify(data, null, 2));
 	}
 
 	async loadTechnologies(): Promise<Record<string, Technology> | undefined> {
-		await this.ensureDocsDir();
+		await this.ensureCacheDir();
 		try {
 			const data = await fs.readFile(this.technologiesCachePath, 'utf8');
 			const parsed = JSON.parse(data) as unknown;
@@ -74,7 +79,7 @@ export class FileCache {
 	}
 
 	async saveTechnologies(technologies: Record<string, Technology>): Promise<void> {
-		await this.ensureDocsDir();
+		await this.ensureCacheDir();
 		await fs.writeFile(this.technologiesCachePath, JSON.stringify(technologies, null, 2));
 	}
 
@@ -82,11 +87,11 @@ export class FileCache {
 		return name.replaceAll(/[^\w-]/gi, '_');
 	}
 
-	private async ensureDocsDir(): Promise<void> {
+	private async ensureCacheDir(): Promise<void> {
 		await fs.mkdir(this.docsDir, {recursive: true});
 	}
 
-	private getDocsPath(frameworkName: string): string {
+	private getCachePath(frameworkName: string): string {
 		const safeName = this.sanitizeFrameworkName(frameworkName);
 		return join(this.docsDir, `${safeName}.json`);
 	}

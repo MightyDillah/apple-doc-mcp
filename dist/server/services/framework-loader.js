@@ -3,10 +3,26 @@ const tokenize = (value) => {
     if (!value) {
         return [];
     }
-    return value
-        .split(/[\s/._-]+/)
-        .map(token => token.toLowerCase())
-        .filter(Boolean);
+    const tokens = new Set();
+    // Split on common delimiters
+    const basicTokens = value.split(/[\s/._-]+/).filter(Boolean);
+    for (const token of basicTokens) {
+        // Add lowercase version
+        tokens.add(token.toLowerCase());
+        // Add original case version for exact matches
+        tokens.add(token);
+        // Handle camelCase/PascalCase (e.g., GridItem -> grid, item, griditem)
+        const camelParts = token.split(/(?=[A-Z])/).filter(Boolean);
+        if (camelParts.length > 1) {
+            for (const part of camelParts) {
+                tokens.add(part.toLowerCase());
+                tokens.add(part);
+            }
+            // Add concatenated lowercase version
+            tokens.add(camelParts.join('').toLowerCase());
+        }
+    }
+    return [...tokens];
 };
 export const loadActiveFrameworkData = async ({ client, state }) => {
     const activeTechnology = state.getActiveTechnology();

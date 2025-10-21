@@ -7,6 +7,14 @@ A Model Context Protocol (MCP) server that provides seamless access to Apple's D
 if you find this MCP helpful, I'd really apperciate it if you clicked on the [❤️ Sponsor](https://github.com/sponsors/MightyDillah) button up there, any contribution is apperciated! thanks.
 
 ## 📋 Changelog
+- 1.6.0
+  - Dynamic path resolution - no hardcoded paths
+  - Fixed cache location to use MCP directory instead of polluting home/working directories
+  - Fixed tutorials and non-framework content retrieval (sample-apps, updates, etc)
+  - Improved search tokenization for compound words like GridItem
+  - Enhanced search scoring with fuzzy matching and case-insensitive support
+  - Expanded search index coverage for better symbol discovery
+  - Added path validation for different content types
 - 1.5.1 (Major update!)
   - Now on npm! someone annoying already uploaded it under apple-doc-mcp and theres no way to reach them so I had to rename it to apple-doc-mcp-server thanks random guy!
   - Introduced per-technology caching, mandatory framework selection, and the guided discovery/search flow.

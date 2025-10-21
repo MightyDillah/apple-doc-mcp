@@ -41,34 +41,49 @@ export const buildGetDocumentationHandler = (context) => {
         const framework = await loadActiveFrameworkData(context);
         const identifierParts = activeTechnology.identifier.split('/');
         const frameworkName = identifierParts.at(-1);
+        // Try path as-is first, fallback to framework-prefixed path
         let targetPath = path;
-        if (!path.startsWith('documentation/')) {
-            targetPath = `documentation/${frameworkName}/${path}`;
-        }
+        let data;
         try {
-            const data = await client.getSymbol(targetPath);
-            const title = data.metadata?.title || 'Symbol';
-            const kind = data.metadata?.symbolKind || 'Unknown';
-            const platforms = client.formatPlatforms(data.metadata?.platforms ?? framework.metadata.platforms);
-            const description = client.extractText(data.abstract);
-            const content = [
-                header(1, title),
-                '',
-                bold('Technology', activeTechnology.title),
-                bold('Type', kind),
-                bold('Platforms', platforms),
-                '',
-                header(2, 'Overview'),
-                description,
-            ];
-            content.push(...formatTopicSections(data, client));
-            return {
-                content: [{ text: content.join('\n'), type: 'text' }],
-            };
+            // First attempt: try the path exactly as provided
+            data = await client.getSymbol(targetPath);
         }
         catch (error) {
-            throw new McpError(ErrorCode.InvalidRequest, `Failed to load documentation for ${targetPath}: ${error instanceof Error ? error.message : String(error)}`);
+            // If that fails and path doesn't already start with documentation/, 
+            // try prefixing with framework path
+            if (!path.startsWith('documentation/')) {
+                try {
+                    targetPath = `documentation/${frameworkName}/${path}`;
+                    data = await client.getSymbol(targetPath);
+                }
+                catch (secondError) {
+                    // If both attempts fail, throw the original error with helpful context
+                    throw new McpError(ErrorCode.InvalidRequest, `Failed to load documentation for both "${path}" and "${targetPath}": ${error instanceof Error ? error.message : String(error)}`);
+                }
+            }
+            else {
+                // Path already starts with documentation/, so just rethrow original error
+                throw error;
+            }
         }
+        const title = data.metadata?.title || 'Symbol';
+        const kind = data.metadata?.symbolKind || 'Unknown';
+        const platforms = client.formatPlatforms(data.metadata?.platforms ?? framework.metadata.platforms);
+        const description = client.extractText(data.abstract);
+        const content = [
+            header(1, title),
+            '',
+            bold('Technology', activeTechnology.title),
+            bold('Type', kind),
+            bold('Platforms', platforms),
+            '',
+            header(2, 'Overview'),
+            description,
+        ];
+        content.push(...formatTopicSections(data, client));
+        return {
+            content: [{ text: content.join('\n'), type: 'text' }],
+        };
     };
 };
 //# sourceMappingURL=get-documentation.js.map

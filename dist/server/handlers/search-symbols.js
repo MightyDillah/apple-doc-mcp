@@ -20,7 +20,10 @@ export const buildSearchSymbolsHandler = (context) => {
         let matches = collectMatches(entries, query, maxResults * 2, filters);
         if (matches.length === 0) {
             const framework = await loadActiveFrameworkData(context);
-            const nestedIdentifiers = framework.topicSections.flatMap(section => section.identifiers ?? []).slice(0, 200);
+            // Expand more comprehensive set of identifiers for better coverage
+            const nestedIdentifiers = framework.topicSections
+                .flatMap(section => section.identifiers ?? [])
+                .slice(0, 300); // Increased from 200 for better coverage
             if (nestedIdentifiers.length > 0) {
                 index = await expandSymbolReferences(context, nestedIdentifiers);
                 entries = [...index.values()];
