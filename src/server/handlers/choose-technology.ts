@@ -44,7 +44,7 @@ export const buildChooseTechnologyHandler = ({client, state}: ServerContext) =>
 		const normalizedName = name?.toLowerCase().trim();
 		const normalizedIdentifier = identifier?.toLowerCase().trim();
 
-		let chosen: typeof candidates[0] | undefined = undefined;
+		let chosen: typeof candidates[0] | undefined;
 
 		// Try identifier first (most specific)
 		if (normalizedIdentifier) {

@@ -1,4 +1,5 @@
-import type { FrameworkData, ReferenceData, Technology } from '../apple-client.js';
+import type { FrameworkData, ReferenceData, Technology, AppleDevDocsClient } from '../apple-client.js';
+import { LocalSymbolIndex } from './services/local-symbol-index.js';
 export type LastDiscovery = {
     query?: string;
     results: Technology[];
@@ -14,6 +15,7 @@ export declare class ServerState {
     private frameworkIndex?;
     private readonly expandedIdentifiers;
     private lastDiscovery?;
+    private localSymbolIndex?;
     getActiveTechnology(): Technology | undefined;
     setActiveTechnology(technology: Technology | undefined): void;
     getActiveFrameworkData(): FrameworkData | undefined;
@@ -26,4 +28,7 @@ export declare class ServerState {
     markIdentifierExpanded(identifier: string): void;
     getLastDiscovery(): LastDiscovery | undefined;
     setLastDiscovery(lastDiscovery: LastDiscovery | undefined): void;
+    getLocalSymbolIndex(client: AppleDevDocsClient): LocalSymbolIndex;
+    clearLocalSymbolIndex(): void;
+    private resetIndexForNewTechnology;
 }

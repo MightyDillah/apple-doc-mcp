@@ -68,17 +68,17 @@ export class AppleDevDocsClient {
 		}
 
 		// If no cache, download from API and save
-		const response = await this.httpClient.getDocumentation<any>('documentation/technologies');
+		const response = await this.httpClient.getDocumentation<unknown>('documentation/technologies');
 
 		// The API returns a structure with 'references' containing the technologies
 		let technologies: Record<string, Technology> = {};
-		
+
 		if (response && typeof response === 'object') {
 			if ('references' in response && response.references) {
-				technologies = response.references;
+				technologies = response.references as Record<string, Technology>;
 			} else if (typeof response === 'object' && !Array.isArray(response)) {
 				// Fallback: treat the whole response as technologies if no references key
-				technologies = response;
+				technologies = response as Record<string, Technology>;
 			}
 		}
 
@@ -92,17 +92,17 @@ export class AppleDevDocsClient {
 
 	// Force refresh technologies cache (user-invoked)
 	async refreshTechnologies(): Promise<Record<string, Technology>> {
-		const response = await this.httpClient.getDocumentation<any>('documentation/technologies');
+		const response = await this.httpClient.getDocumentation<unknown>('documentation/technologies');
 
 		// The API returns a structure with 'references' containing the technologies
 		let technologies: Record<string, Technology> = {};
-		
+
 		if (response && typeof response === 'object') {
 			if ('references' in response && response.references) {
-				technologies = response.references;
+				technologies = response.references as Record<string, Technology>;
 			} else if (typeof response === 'object' && !Array.isArray(response)) {
 				// Fallback: treat the whole response as technologies if no references key
-				technologies = response;
+				technologies = response as Record<string, Technology>;
 			}
 		}
 

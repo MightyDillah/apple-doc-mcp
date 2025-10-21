@@ -38,9 +38,19 @@ export class LocalSymbolIndex {
 
 		console.log('📚 Building local symbol index from cached files...');
 
+		// Validate cache directory exists
+		if (!existsSync(this.cacheDir)) {
+			console.warn(`Cache directory does not exist: ${this.cacheDir}`);
+			this.indexBuilt = true;
+			return;
+		}
+
 		// Read all JSON files in the docs directory
 		const files = readdirSync(this.cacheDir).filter(file => file.endsWith('.json'));
 		console.log(`📁 Found ${files.length} cached files`);
+
+		let processedCount = 0;
+		let errorCount = 0;
 
 		for (const file of files) {
 			const filePath = join(this.cacheDir, file);
@@ -48,15 +58,24 @@ export class LocalSymbolIndex {
 				const rawData = readFileSync(filePath, 'utf8');
 				const data = JSON.parse(rawData) as SymbolData | FrameworkData;
 
+				// Validate data structure
+				if (!this.isValidCacheData(data)) {
+					console.warn(`Invalid cache data in ${file}, skipping`);
+					errorCount++;
+					continue;
+				}
+
 				// Process the data
 				this.processSymbolData(data, filePath);
+				processedCount++;
 			} catch (error) {
 				console.warn(`Failed to process ${file}:`, error instanceof Error ? error.message : String(error));
+				errorCount++;
 			}
 		}
 
 		this.indexBuilt = true;
-		console.log(`✅ Local symbol index built with ${this.symbols.size} symbols`);
+		console.log(`✅ Local symbol index built with ${this.symbols.size} symbols (${processedCount} files processed, ${errorCount} errors)`);
 	}
 
 	search(query: string, maxResults = 20): LocalSymbolIndexEntry[] {
@@ -117,6 +136,28 @@ export class LocalSymbolIndex {
 
 	clear(): void {
 		this.symbols.clear();
+		this.indexBuilt = false;
+	}
+
+	private isValidCacheData(data: unknown): data is SymbolData | FrameworkData {
+		if (!data || typeof data !== 'object') {
+			return false;
+		}
+
+		const object = data as Record<string, unknown>;
+
+		// Check for required properties
+		if (!('abstract' in object) || !('metadata' in object)) {
+			return false;
+		}
+
+		// Validate metadata structure
+		const {metadata} = object;
+		if (!metadata || typeof metadata !== 'object') {
+			return false;
+		}
+
+		return true;
 	}
 
 	private tokenize(text: string): string[] {

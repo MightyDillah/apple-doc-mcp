@@ -29,7 +29,7 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
     // Normalize search terms - case insensitive
     const normalizedName = name?.toLowerCase().trim();
     const normalizedIdentifier = identifier?.toLowerCase().trim();
-    let chosen = undefined;
+    let chosen;
     // Try identifier first (most specific)
     if (normalizedIdentifier) {
         chosen = candidates.find(tech => tech.identifier?.toLowerCase() === normalizedIdentifier);

@@ -15,9 +15,8 @@ export const buildSearchSymbolsHandler = (context: ServerContext) => {
 
 		const {query, maxResults = 20, platform, symbolType} = args;
 
-		// Create technology-specific local index
-		const technologyIdentifier = activeTechnology.identifier.replace('doc://com.apple.documentation/', '').replace(/^documentation\//, '');
-		const techLocalIndex = new LocalSymbolIndex(client, technologyIdentifier);
+		// Get or create technology-specific local index from state
+		const techLocalIndex = state.getLocalSymbolIndex(client);
 
 		// Build local index from cached files if not already built
 		if (techLocalIndex.getSymbolCount() === 0) {
@@ -33,20 +32,20 @@ export const buildSearchSymbolsHandler = (context: ServerContext) => {
 		// Comprehensive download disabled - it was broken and blocking
 		// If local index is empty/small, use direct framework search as fallback
 		let symbolResults = techLocalIndex.search(query, maxResults * 2);
-		
+
 		if (symbolResults.length === 0 && techLocalIndex.getSymbolCount() < 50) {
 			// Fallback: search framework.references directly (fast, no download needed)
 			console.log('📋 Using framework references for search...');
 			const frameworkResults = await client.searchFramework(activeTechnology.title, query, {maxResults: maxResults * 2, platform, symbolType});
 			symbolResults = frameworkResults.map(r => ({
-				id: r.path || r.title,
+				id: r.path ?? r.title,
 				title: r.title,
-				path: r.path || '',
-				kind: r.symbolKind || 'symbol',
+				path: r.path ?? '',
+				kind: r.symbolKind ?? 'symbol',
 				abstract: r.description,
 				platforms: r.platforms ? r.platforms.split(', ') : [],
 				tokens: [],
-				filePath: ''
+				filePath: '',
 			}));
 		}
 
@@ -67,6 +66,7 @@ export const buildSearchSymbolsHandler = (context: ServerContext) => {
 		filteredResults = filteredResults.slice(0, maxResults);
 
 		// Validate result relevance
+		const technologyIdentifier = activeTechnology.identifier.replace('doc://com.apple.documentation/', '').replace(/^documentation\//, '');
 		const isRelevantResult = (result: LocalSymbolIndexEntry) => {
 			const resultPath = result.path.toLowerCase();
 			const technologyPath = technologyIdentifier.toLowerCase();

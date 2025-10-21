@@ -1,4 +1,3 @@
-import { LocalSymbolIndex } from '../services/local-symbol-index.js';
 import { header, bold } from '../markdown.js';
 import { buildNoTechnologyMessage } from './no-technology.js';
 export const buildSearchSymbolsHandler = (context) => {
@@ -10,9 +9,8 @@ export const buildSearchSymbolsHandler = (context) => {
             return noTechnology();
         }
         const { query, maxResults = 20, platform, symbolType } = args;
-        // Create technology-specific local index
-        const technologyIdentifier = activeTechnology.identifier.replace('doc://com.apple.documentation/', '').replace(/^documentation\//, '');
-        const techLocalIndex = new LocalSymbolIndex(client, technologyIdentifier);
+        // Get or create technology-specific local index from state
+        const techLocalIndex = state.getLocalSymbolIndex(client);
         // Build local index from cached files if not already built
         if (techLocalIndex.getSymbolCount() === 0) {
             try {
@@ -32,14 +30,14 @@ export const buildSearchSymbolsHandler = (context) => {
             console.log('📋 Using framework references for search...');
             const frameworkResults = await client.searchFramework(activeTechnology.title, query, { maxResults: maxResults * 2, platform, symbolType });
             symbolResults = frameworkResults.map(r => ({
-                id: r.path || r.title,
+                id: r.path ?? r.title,
                 title: r.title,
-                path: r.path || '',
-                kind: r.symbolKind || 'symbol',
+                path: r.path ?? '',
+                kind: r.symbolKind ?? 'symbol',
                 abstract: r.description,
                 platforms: r.platforms ? r.platforms.split(', ') : [],
                 tokens: [],
-                filePath: ''
+                filePath: '',
             }));
         }
         // Apply filters
@@ -54,6 +52,7 @@ export const buildSearchSymbolsHandler = (context) => {
         }
         filteredResults = filteredResults.slice(0, maxResults);
         // Validate result relevance
+        const technologyIdentifier = activeTechnology.identifier.replace('doc://com.apple.documentation/', '').replace(/^documentation\//, '');
         const isRelevantResult = (result) => {
             const resultPath = result.path.toLowerCase();
             const technologyPath = technologyIdentifier.toLowerCase();
