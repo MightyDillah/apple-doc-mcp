@@ -36,7 +36,7 @@ export const buildGetDocumentationHandler = (context) => {
     return async ({ path }) => {
         const activeTechnology = state.getActiveTechnology();
         if (!activeTechnology) {
-            return await noTechnology();
+            return noTechnology();
         }
         const framework = await loadActiveFrameworkData(context);
         const identifierParts = activeTechnology.identifier.split('/');
@@ -49,21 +49,21 @@ export const buildGetDocumentationHandler = (context) => {
             data = await client.getSymbol(targetPath);
         }
         catch (error) {
-            // If that fails and path doesn't already start with documentation/, 
+            // If that fails and path doesn't already start with documentation/,
             // try prefixing with framework path
-            if (!path.startsWith('documentation/')) {
+            if (path.startsWith('documentation/')) {
+                // Path already starts with documentation/, so just rethrow original error
+                throw error;
+            }
+            else {
                 try {
                     targetPath = `documentation/${frameworkName}/${path}`;
                     data = await client.getSymbol(targetPath);
                 }
-                catch (secondError) {
+                catch {
                     // If both attempts fail, throw the original error with helpful context
                     throw new McpError(ErrorCode.InvalidRequest, `Failed to load documentation for both "${path}" and "${targetPath}": ${error instanceof Error ? error.message : String(error)}`);
                 }
-            }
-            else {
-                // Path already starts with documentation/, so just rethrow original error
-                throw error;
             }
         }
         const title = data.metadata?.title || 'Symbol';

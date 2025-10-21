@@ -41,34 +41,20 @@ export const buildNoTechnologyMessage = ({ client, state }) => async () => {
         header(2, '📚 Available Technologies'),
     ];
     if (availableTechnologies.length > 0) {
-        lines.push('');
-        lines.push('Popular technologies you can choose from:');
-        availableTechnologies.forEach(tech => {
+        lines.push('', 'Popular technologies you can choose from:');
+        for (const tech of availableTechnologies) {
             lines.push(`• **${tech}** — \`choose_technology { "name": "${tech}" }\``);
-        });
+        }
         if (availableTechnologies.length === 8) {
             lines.push('• **...and many more** — use `discover_technologies` to see all options');
         }
     }
     else {
-        lines.push('');
-        lines.push('Use `discover_technologies` to see all available Apple technologies.');
+        lines.push('', 'Use `discover_technologies` to see all available Apple technologies.');
     }
-    lines.push('');
-    lines.push(header(2, '💡 Quick Start Examples'));
-    lines.push('');
-    lines.push('**For SwiftUI development:**');
-    lines.push('1. `discover_technologies { "query": "swiftui" }`');
-    lines.push('2. `choose_technology { "name": "SwiftUI" }`');
-    lines.push('3. `search_symbols { "query": "Button" }`');
-    lines.push('');
-    lines.push('**For UIKit development:**');
-    lines.push('1. `discover_technologies { "query": "uikit" }`');
-    lines.push('2. `choose_technology { "name": "UIKit" }`');
-    lines.push('3. `search_symbols { "query": "UIButton" }`');
+    lines.push('', header(2, '💡 Quick Start Examples'), '', '**For SwiftUI development:**', '1. `discover_technologies { "query": "swiftui" }`', '2. `choose_technology { "name": "SwiftUI" }`', '3. `search_symbols { "query": "Button" }`', '', '**For UIKit development:**', '1. `discover_technologies { "query": "uikit" }`', '2. `choose_technology { "name": "UIKit" }`', '3. `search_symbols { "query": "UIButton" }`');
     if (lastDiscovery?.results?.length) {
-        lines.push('');
-        lines.push(header(2, '🔄 Recently Discovered'));
+        lines.push('', header(2, '🔄 Recently Discovered'));
         for (const result of lastDiscovery.results.slice(0, 3)) {
             lines.push(`• **${result.title}** — \`choose_technology { "name": "${result.title}" }\``);
         }

@@ -13,7 +13,7 @@ export class FileCache {
 	constructor(baseDir?: string) {
 		// Use MCP's own directory structure instead of process.cwd()
 		const mcpRoot = join(__dirname, '../../../..');
-		this.docsDir = join(baseDir || mcpRoot, 'cache');
+		this.docsDir = join(baseDir ?? mcpRoot, 'cache');
 		this.technologiesCachePath = join(this.docsDir, 'technologies.json');
 	}
 

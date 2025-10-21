@@ -1,13 +1,14 @@
-import type {SymbolData, ReferenceData, FrameworkData} from '../../apple-client.js';
-import {AppleDevDocsClient} from '../../apple-client.js';
-import {readFileSync, existsSync, readdirSync} from 'fs';
-import {join, dirname} from 'path';
-import {fileURLToPath} from 'url';
+import {readFileSync, existsSync, readdirSync} from 'node:fs';
+import {join, dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {
+	type AppleDevDocsClient, type SymbolData, type ReferenceData, type FrameworkData,
+} from '../../apple-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export interface LocalSymbolIndexEntry {
+export type LocalSymbolIndexEntry = {
 	id: string;
 	title: string;
 	path: string;
@@ -16,35 +17,125 @@ export interface LocalSymbolIndexEntry {
 	platforms: string[];
 	tokens: string[];
 	filePath: string;
-}
+};
 
 export class LocalSymbolIndex {
-	private symbols: Map<string, LocalSymbolIndexEntry> = new Map();
-	private client: AppleDevDocsClient;
-	private cacheDir: string;
-	private technologyIdentifier?: string;
+	private readonly symbols = new Map<string, LocalSymbolIndexEntry>();
+	private readonly cacheDir: string;
+	private readonly technologyIdentifier?: string;
+	private indexBuilt = false;
 
-	constructor(client: AppleDevDocsClient, technologyIdentifier?: string) {
-		this.client = client;
+	constructor(private readonly client: AppleDevDocsClient, technologyIdentifier?: string) {
 		this.cacheDir = join(__dirname, '../../../docs');
 		this.technologyIdentifier = technologyIdentifier;
 	}
 
+	async buildIndexFromCache(): Promise<void> {
+		if (this.indexBuilt) {
+			console.log('📚 Index already built, skipping rebuild');
+			return;
+		}
+
+		console.log('📚 Building local symbol index from cached files...');
+
+		// Read all JSON files in the docs directory
+		const files = readdirSync(this.cacheDir).filter(file => file.endsWith('.json'));
+		console.log(`📁 Found ${files.length} cached files`);
+
+		for (const file of files) {
+			const filePath = join(this.cacheDir, file);
+			try {
+				const rawData = readFileSync(filePath, 'utf8');
+				const data = JSON.parse(rawData) as SymbolData | FrameworkData;
+
+				// Process the data
+				this.processSymbolData(data, filePath);
+			} catch (error) {
+				console.warn(`Failed to process ${file}:`, error instanceof Error ? error.message : String(error));
+			}
+		}
+
+		this.indexBuilt = true;
+		console.log(`✅ Local symbol index built with ${this.symbols.size} symbols`);
+	}
+
+	search(query: string, maxResults = 20): LocalSymbolIndexEntry[] {
+		const results: Array<{entry: LocalSymbolIndexEntry; score: number}> = [];
+		const queryTokens = this.tokenize(query);
+
+		// Check if query contains wildcards
+		const hasWildcards = query.includes('*') || query.includes('?');
+
+		for (const [id, entry] of this.symbols.entries()) {
+			let score = 0;
+
+			if (hasWildcards) {
+				// Wildcard matching
+				const pattern = query
+					.replaceAll('*', '.*')
+					.replaceAll('?', '.')
+					.toLowerCase();
+
+				const regex = new RegExp(`^${pattern}$`);
+
+				if (regex.test(entry.title.toLowerCase())
+					|| regex.test(entry.path.toLowerCase())
+					|| entry.tokens.some(token => regex.test(token))) {
+					score = 100; // High score for wildcard matches
+				}
+			} else {
+				// Regular token-based matching
+				for (const queryToken of queryTokens) {
+					if (entry.title.toLowerCase().includes(queryToken.toLowerCase())) {
+						score += 50;
+					}
+
+					if (entry.tokens.includes(queryToken)) {
+						score += 30;
+					}
+
+					if (entry.abstract.toLowerCase().includes(queryToken.toLowerCase())) {
+						score += 10;
+					}
+				}
+			}
+
+			if (score > 0) {
+				results.push({entry, score});
+			}
+		}
+
+		return results
+			.sort((a, b) => b.score - a.score)
+			.slice(0, maxResults)
+			.map(result => result.entry);
+	}
+
+	getSymbolCount(): number {
+		return this.symbols.size;
+	}
+
+	clear(): void {
+		this.symbols.clear();
+	}
+
 	private tokenize(text: string): string[] {
-		if (!text) return [];
-		
+		if (!text) {
+			return [];
+		}
+
 		const tokens = new Set<string>();
-		
+
 		// Split on common delimiters
 		const basicTokens = text.split(/[\s/._-]+/).filter(Boolean);
-		
+
 		for (const token of basicTokens) {
 			// Add lowercase version
 			tokens.add(token.toLowerCase());
-			
+
 			// Add original case version for exact matches
 			tokens.add(token);
-			
+
 			// Handle camelCase/PascalCase (e.g., GridItem -> grid, item, griditem)
 			const camelParts = token.split(/(?=[A-Z])/).filter(Boolean);
 			if (camelParts.length > 1) {
@@ -52,6 +143,7 @@ export class LocalSymbolIndex {
 					tokens.add(part.toLowerCase());
 					tokens.add(part);
 				}
+
 				// Add concatenated lowercase version
 				tokens.add(camelParts.join('').toLowerCase());
 			}
@@ -66,7 +158,7 @@ export class LocalSymbolIndex {
 		const kind = (data.metadata && 'symbolKind' in data.metadata && typeof data.metadata.symbolKind === 'string') ? data.metadata.symbolKind : 'framework';
 		const abstract = this.client.extractText(data.abstract);
 		const platforms = data.metadata?.platforms?.map(p => p.name).filter(Boolean) || [];
-		
+
 		// Filter by technology if specified
 		if (this.technologyIdentifier && path) {
 			const technologyPath = this.technologyIdentifier.toLowerCase();
@@ -75,17 +167,9 @@ export class LocalSymbolIndex {
 				return; // Skip symbols not from the selected technology
 			}
 		}
-		
+
 		// Create comprehensive tokens
-		const tokens = new Set<string>();
-		this.tokenize(title).forEach(token => tokens.add(token));
-		this.tokenize(abstract).forEach(token => tokens.add(token));
-		this.tokenize(path).forEach(token => tokens.add(token));
-		
-		// Add platform tokens
-		platforms.forEach(platform => {
-			this.tokenize(platform).forEach(token => tokens.add(token));
-		});
+		const tokens = this.createTokens(title, abstract, path, platforms);
 
 		const entry: LocalSymbolIndexEntry = {
 			id: path || title,
@@ -94,124 +178,77 @@ export class LocalSymbolIndex {
 			kind,
 			abstract,
 			platforms,
-			tokens: [...tokens],
-			filePath
+			tokens,
+			filePath,
 		};
 
 		this.symbols.set(path || title, entry);
 
 		// Process references recursively
-		if (data.references) {
-			for (const [refId, ref] of Object.entries(data.references)) {
-				if (ref.kind === 'symbol' && ref.title) {
-					// Filter references by technology if specified
-					if (this.technologyIdentifier && ref.url) {
-						const technologyPath = this.technologyIdentifier.toLowerCase();
-						const refPath = ref.url.toLowerCase();
-						if (!refPath.includes(technologyPath)) {
-							continue; // Skip references not from the selected technology
-						}
-					}
+		this.processReferences(data.references, filePath);
+	}
 
-					const refTokens = new Set<string>();
-					this.tokenize(ref.title).forEach(token => refTokens.add(token));
-					this.tokenize(ref.url || '').forEach(token => refTokens.add(token));
-					this.tokenize(this.client.extractText(ref.abstract || [])).forEach(token => refTokens.add(token));
+	private createTokens(title: string, abstract: string, path: string, platforms: string[]): string[] {
+		const tokens = new Set<string>();
 
-					const refEntry: LocalSymbolIndexEntry = {
-						id: refId,
-						title: ref.title,
-						path: ref.url || '',
-						kind: ref.kind,
-						abstract: this.client.extractText(ref.abstract || []),
-						platforms: ref.platforms?.map(p => p.name).filter(Boolean) || [],
-						tokens: [...refTokens],
-						filePath
-					};
+		for (const token of this.tokenize(title)) {
+			tokens.add(token);
+		}
 
-					this.symbols.set(refId, refEntry);
-				}
+		for (const token of this.tokenize(abstract)) {
+			tokens.add(token);
+		}
+
+		for (const token of this.tokenize(path)) {
+			tokens.add(token);
+		}
+
+		// Add platform tokens
+		for (const platform of platforms) {
+			for (const token of this.tokenize(platform)) {
+				tokens.add(token);
 			}
 		}
+
+		return [...tokens];
 	}
 
-	async buildIndexFromCache(): Promise<void> {
-		console.log('Building local symbol index from cached files...');
-		
-		// Read all JSON files in the docs directory
-		const files = readdirSync(this.cacheDir).filter(file => file.endsWith('.json'));
-		
-		for (const file of files) {
-			const filePath = join(this.cacheDir, file);
-			try {
-				const rawData = readFileSync(filePath, 'utf8');
-				const data = JSON.parse(rawData);
-				
-				// Process the data
-				this.processSymbolData(data, filePath);
-			} catch (error) {
-				console.warn(`Failed to process ${file}:`, error instanceof Error ? error.message : String(error));
-			}
+	private processReferences(references: Record<string, ReferenceData> | undefined, filePath: string): void {
+		if (!references) {
+			return;
 		}
-		
-		console.log(`Local symbol index built with ${this.symbols.size} symbols`);
-	}
 
-	search(query: string, maxResults: number = 20): LocalSymbolIndexEntry[] {
-		const results: Array<{entry: LocalSymbolIndexEntry; score: number}> = [];
-		const queryTokens = this.tokenize(query);
-		
-		// Check if query contains wildcards
-		const hasWildcards = query.includes('*') || query.includes('?');
-		
-		for (const [id, entry] of this.symbols.entries()) {
-			let score = 0;
-			
-			if (hasWildcards) {
-				// Wildcard matching
-				const pattern = query
-					.replace(/\*/g, '.*')
-					.replace(/\?/g, '.')
-					.toLowerCase();
-				
-				const regex = new RegExp(`^${pattern}$`);
-				
-				if (regex.test(entry.title.toLowerCase()) || 
-					regex.test(entry.path.toLowerCase()) ||
-					entry.tokens.some(token => regex.test(token))) {
-					score = 100; // High score for wildcard matches
-				}
-			} else {
-				// Regular token-based matching
-				for (const queryToken of queryTokens) {
-					if (entry.title.toLowerCase().includes(queryToken.toLowerCase())) {
-						score += 50;
-					}
-					if (entry.tokens.includes(queryToken)) {
-						score += 30;
-					}
-					if (entry.abstract.toLowerCase().includes(queryToken.toLowerCase())) {
-						score += 10;
+		for (const [refId, ref] of Object.entries(references)) {
+			if (ref.kind === 'symbol' && ref.title) {
+				// Filter references by technology if specified
+				if (this.technologyIdentifier && ref.url) {
+					const technologyPath = this.technologyIdentifier.toLowerCase();
+					const refPath = ref.url.toLowerCase();
+					if (!refPath.includes(technologyPath)) {
+						continue; // Skip references not from the selected technology
 					}
 				}
-			}
-			
-			if (score > 0) {
-				results.push({entry, score});
+
+				const refTokens = this.createTokens(
+					ref.title,
+					this.client.extractText(ref.abstract ?? []),
+					ref.url || '',
+					ref.platforms?.map(p => p.name).filter(Boolean) ?? [],
+				);
+
+				const refEntry: LocalSymbolIndexEntry = {
+					id: refId,
+					title: ref.title,
+					path: ref.url || '',
+					kind: ref.kind,
+					abstract: this.client.extractText(ref.abstract ?? []),
+					platforms: ref.platforms?.map(p => p.name).filter(Boolean) ?? [],
+					tokens: refTokens,
+					filePath,
+				};
+
+				this.symbols.set(refId, refEntry);
 			}
 		}
-		
-		return results
-			.sort((a, b) => b.score - a.score)
-			.slice(0, maxResults)
-			.map(result => result.entry);
-	}
-
-	getSymbolCount(): number {
-		return this.symbols.size;
-	}
-
-	clear(): void {
-		this.symbols.clear();
 	}
 }

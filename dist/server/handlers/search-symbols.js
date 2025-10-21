@@ -11,7 +11,7 @@ export const buildSearchSymbolsHandler = (context) => {
     return async (args) => {
         const activeTechnology = state.getActiveTechnology();
         if (!activeTechnology) {
-            return await noTechnology();
+            return noTechnology();
         }
         const { query, maxResults = 20, platform, symbolType } = args;
         // Create technology-specific local index
@@ -20,18 +20,23 @@ export const buildSearchSymbolsHandler = (context) => {
         // Build local index from cached files if not already built
         if (techLocalIndex.getSymbolCount() === 0) {
             try {
+                console.log('📚 Building symbol index from cache...');
                 await techLocalIndex.buildIndexFromCache();
+                console.log(`✅ Index built with ${techLocalIndex.getSymbolCount()} symbols`);
             }
             catch (error) {
                 console.warn('Failed to build local symbol index:', error instanceof Error ? error.message : String(error));
             }
         }
-        // If we have very few symbols, try downloading more
+        // If we have very few symbols, try downloading more with user feedback
         if (techLocalIndex.getSymbolCount() < 50) {
             try {
-                console.log('Downloading comprehensive symbol data...');
+                console.log('🔄 Downloading additional symbol data...');
+                console.log('⏳ This may take a moment for comprehensive results...');
                 await downloader.downloadAllSymbols(context);
+                console.log('🔄 Rebuilding index with new data...');
                 await techLocalIndex.buildIndexFromCache(); // Rebuild index with new data
+                console.log(`✅ Index updated with ${techLocalIndex.getSymbolCount()} symbols`);
             }
             catch (error) {
                 console.warn('Failed to download comprehensive symbols:', error instanceof Error ? error.message : String(error));
@@ -56,7 +61,7 @@ export const buildSearchSymbolsHandler = (context) => {
             const technologyPath = technologyIdentifier.toLowerCase();
             return resultPath.includes(technologyPath);
         };
-        const relevantResults = filteredResults.filter(isRelevantResult);
+        const relevantResults = filteredResults.filter(result => isRelevantResult(result));
         const hasIrrelevantResults = relevantResults.length < filteredResults.length;
         const lines = [
             header(1, `🔍 Search Results for "${query}"`),
@@ -65,9 +70,15 @@ export const buildSearchSymbolsHandler = (context) => {
             bold('Matches', filteredResults.length.toString()),
             bold('Total Symbols Indexed', techLocalIndex.getSymbolCount().toString()),
             '',
-            header(2, 'Symbols'),
-            '',
         ];
+        // Add status information
+        if (techLocalIndex.getSymbolCount() < 50) {
+            lines.push('⚠️ **Limited Results:** Only basic symbols are indexed.', 'For comprehensive results, additional symbols are being downloaded in the background.', '');
+        }
+        else {
+            lines.push('✅ **Comprehensive Index:** Full symbol database is available.', '');
+        }
+        lines.push(header(2, 'Symbols'), '');
         // Show warning if results seem irrelevant
         if (hasIrrelevantResults && filteredResults.length > 0) {
             lines.push('⚠️ **Note:** Some results may not be from the selected technology.', 'For specific symbol names, try using `get_documentation` instead.', '');
@@ -80,10 +91,10 @@ export const buildSearchSymbolsHandler = (context) => {
         }
         else {
             // Check if this looks like a specific symbol name that should use direct documentation lookup
-            const isSpecificSymbol = /^[A-Z][a-zA-Z0-9]*$/.test(query) || /^[A-Z][a-zA-Z0-9]*\.[A-Z][a-zA-Z0-9]*$/.test(query);
+            const isSpecificSymbol = /^[A-Z][a-zA-Z\d]*$/.test(query) || /^[A-Z][a-zA-Z\d]*\.[A-Z][a-zA-Z\d]*$/.test(query);
             lines.push('No symbols matched those terms within this technology.', '', '**Search Tips:**', '• Try wildcards: `Grid*` or `*Item`', '• Use broader keywords: "grid" instead of "griditem"', '• Check spelling and try synonyms', '');
             if (isSpecificSymbol) {
-                lines.push('**💡 Suggestion:** This looks like a specific symbol name.', 'Try using `get_documentation` instead for direct access:', '', `\`\`\``, `get_documentation { "path": "${query}" }`, `\`\`\``, '');
+                lines.push('**💡 Suggestion:** This looks like a specific symbol name.', 'Try using `get_documentation` instead for direct access:', '', '```', `get_documentation { "path": "${query}" }`, '```', '');
             }
             lines.push('**Note:** If this is your first search, symbols are being downloaded in the background.', 'Try searching again in a few moments for more comprehensive results.', '');
         }

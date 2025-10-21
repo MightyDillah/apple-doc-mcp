@@ -1,17 +1,17 @@
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname, join} from 'node:path';
 import {Server} from '@modelcontextprotocol/sdk/server/index.js';
 import {AppleDevDocsClient} from '../apple-client.js';
 import {ServerState} from './state.js';
 import {registerTools} from './tools.js';
-import {readFileSync} from 'fs';
-import {fileURLToPath} from 'url';
-import {dirname, join} from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Read version from package.json
 const packageJsonPath = join(__dirname, '../../package.json');
-const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {version: string};
 
 export const createServer = () => {
 	const server = new Server(

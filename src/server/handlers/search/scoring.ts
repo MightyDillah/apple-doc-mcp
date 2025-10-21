@@ -4,28 +4,28 @@ import type {RankedReference, SearchFilters} from './types.js';
 
 export const scoreEntry = (entry: {tokens: string[]; ref: ReferenceData}, terms: string[]): number => {
 	let score = 0;
-	
+
 	for (const term of terms) {
 		const termLower = term.toLowerCase();
-		
+
 		// Exact match (highest priority)
 		if (entry.tokens.includes(term)) {
 			score += 5;
 			continue;
 		}
-		
+
 		// Case-insensitive exact match
 		if (entry.tokens.some(token => token.toLowerCase() === termLower)) {
 			score += 4;
 			continue;
 		}
-		
+
 		// Partial match (substring)
 		if (entry.tokens.some(token => token.toLowerCase().includes(termLower))) {
 			score += 2;
 			continue;
 		}
-		
+
 		// Fuzzy match for close approximations
 		for (const token of entry.tokens) {
 			const tokenLower = token.toLowerCase();

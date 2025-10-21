@@ -8,17 +8,17 @@ const tokenize = (value: string | undefined): string[] => {
 	}
 
 	const tokens = new Set<string>();
-	
+
 	// Split on common delimiters
 	const basicTokens = value.split(/[\s/._-]+/).filter(Boolean);
-	
+
 	for (const token of basicTokens) {
 		// Add lowercase version
 		tokens.add(token.toLowerCase());
-		
+
 		// Add original case version for exact matches
 		tokens.add(token);
-		
+
 		// Handle camelCase/PascalCase (e.g., GridItem -> grid, item, griditem)
 		const camelParts = token.split(/(?=[A-Z])/).filter(Boolean);
 		if (camelParts.length > 1) {
@@ -26,6 +26,7 @@ const tokenize = (value: string | undefined): string[] => {
 				tokens.add(part.toLowerCase());
 				tokens.add(part);
 			}
+
 			// Add concatenated lowercase version
 			tokens.add(camelParts.join('').toLowerCase());
 		}

@@ -61,7 +61,8 @@ export const registerTools = (server, context) => {
         },
         {
             name: 'get_documentation',
-            description: 'Get detailed documentation for specific symbols within the selected technology. Use this for known symbol names (e.g., "View", "Button", "GridItem"). Accepts relative symbol names.',
+            description: 'Get detailed documentation for specific symbols within the selected technology. '
+                + 'Use this for known symbol names (e.g., "View", "Button", "GridItem"). Accepts relative symbol names.',
             inputSchema: {
                 type: 'object',
                 required: ['path'],
@@ -76,7 +77,9 @@ export const registerTools = (server, context) => {
         },
         {
             name: 'search_symbols',
-            description: 'Search and discover symbols within the currently selected technology. Use this for exploration and finding symbols by keywords. Supports wildcards (* and ?). For specific known symbols, use get_documentation instead.',
+            description: 'Search and discover symbols within the currently selected technology. '
+                + 'Use this for exploration and finding symbols by keywords. Supports wildcards (* and ?). '
+                + 'For specific known symbols, use get_documentation instead.',
             inputSchema: {
                 type: 'object',
                 required: ['query'],
