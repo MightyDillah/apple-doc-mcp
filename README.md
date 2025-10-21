@@ -10,21 +10,17 @@ if you find this MCP helpful, I'd really apperciate it if you clicked on the [�
 
 Please enjoy the new update the new symbol search is more robus! Thank you to @christopherbattlefrontlegal and @Indading for sponsoring! you guys rock. Please contribute what you can, my aim is to get $100 a month so i can at least fund a claude code account which I will dedicate only to this project.
 
-- 1.8.7
-  - MAJOR ENHANCEMENT: Comprehensive symbol search system with automatic downloading
-  - MAJOR FIX: Fixed Apple documentation API endpoint issue - now uses correct symbol/tutorials/data endpoint
+- 1.8.8
+  - MAJOR FIX: Fixed critical cache inconsistency causing unreliable symbol search results
+  - MAJOR FIX: Implemented stateful LocalSymbolIndex to eliminate index rebuilds on every search
   - MAJOR FIX: Fixed technology filtering in symbol search - now only searches within selected technology
   - MAJOR FIX: Fixed search returning irrelevant results from other Apple frameworks (e.g., EnergyKit when searching SwiftUI)
   - Added wildcard search support (* and ? patterns) for flexible symbol discovery
-  - Implemented comprehensive symbol downloader with recursive symbol fetching
-  - Added local symbol index for fast cached searches
-  - Added comprehensive symbol caching and indexing for all SwiftUI symbols
-  - Automatic symbol download when < 50 symbols indexed (comprehensive coverage)
+  - Added local symbol index for fast cached searches with persistent state management
   - Enhanced error messages with dynamic technology suggestions and step-by-step guidance
   - Improved tokenization with camelCase/PascalCase support (GridItem → grid, item, griditem)
   - Enhanced search with better tokenization and scoring
-  - Search now shows total symbols indexed and download progress
-  - Rate-limited API calls (100ms delays) with retry logic and exponential backoff
+  - Search now shows total symbols indexed with consistent counts
   - Fixed technology selection persistence issues
   - Fixed hardcoded server version to dynamically read from package.json
   - Added get_version tool to expose version information
@@ -33,7 +29,8 @@ Please enjoy the new update the new symbol search is more robus! Thank you to @c
   - Improved error messages with direct suggestions to use get_documentation for known symbols
   - Added result validation to detect and warn about irrelevant search results
   - Updated tool descriptions to clarify when to use search vs direct documentation lookup
-  - Enhanced search handler to create technology-specific symbol indexes
+  - Enhanced search handler to use persistent symbol indexes
+  - Added cache validation and cleanup logic for better reliability
 - 1.6.2
   - Fixed hardcoded server version to dynamically read from package.json
   - Added get_version tool to expose version information
@@ -133,15 +130,24 @@ npm build
 
 ## 🚀 Advanced Features
 
-### Comprehensive Symbol Search
-- **Automatic Download**: System automatically downloads comprehensive symbol data when needed
+### Reliable Symbol Search
+- **Persistent Indexing**: Stateful symbol index that persists between searches for consistent results
 - **Wildcard Support**: Use `*` for any characters, `?` for single character matching
 - **Smart Tokenization**: Handles camelCase/PascalCase automatically (GridItem → grid, item, griditem)
-- **Rate Limited**: Respects API limits with intelligent delays and retry logic
-- **Cached Performance**: Fast local searches with automatic background updates
+- **Technology Filtering**: Searches only within the selected framework to avoid irrelevant results
+- **Cached Performance**: Fast local searches with framework-specific caching
+- **Fallback Search**: Uses framework references when local index is limited
+- **Cache Validation**: Robust error handling for corrupted or invalid cache files
 
 ### Enhanced Error Messages
 - **Clear Guidance**: Explicit step-by-step instructions when no technology is selected
 - **Dynamic Suggestions**: Shows available technologies with exact commands
 - **Quick Start Examples**: SwiftUI and UIKit specific workflows
 - **Professional Formatting**: Clean, helpful error messages with emojis and structure
+
+## ⚠️ Current Limitations
+
+- **Limited Symbol Coverage**: Search relies on cached framework data and references, not comprehensive symbol downloading
+- **No Background Downloads**: Comprehensive symbol downloader is currently disabled due to stability issues
+- **Framework-Specific**: Each technology maintains its own cache and index
+- **Cache Dependency**: Search quality depends on available cached framework data
