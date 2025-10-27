@@ -1,6 +1,6 @@
 {
   "name": "apple-doc-mcp-server",
-  "version": "1.8.9",
+  "version": "1.9.0",
   "description": "MCP server providing seamless access to Apple Developer Documentation with smart search and wildcard support",
   "main": "dist/index.js",
   "type": "module",
@@ -39,7 +39,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.20.1",
+    "@modelcontextprotocol/sdk": "^1.20.2",
     "axios": "^1.12.2"
   },
   "devDependencies": {

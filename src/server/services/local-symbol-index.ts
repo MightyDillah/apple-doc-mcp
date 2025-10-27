@@ -26,17 +26,17 @@ export class LocalSymbolIndex {
 	private indexBuilt = false;
 
 	constructor(private readonly client: AppleDevDocsClient, technologyIdentifier?: string) {
-		this.cacheDir = join(__dirname, '../../../cache');
+		this.cacheDir = join(__dirname, '../../../.cache');
 		this.technologyIdentifier = technologyIdentifier;
 	}
 
 	async buildIndexFromCache(): Promise<void> {
 		if (this.indexBuilt) {
-			console.log('📚 Index already built, skipping rebuild');
+			console.error('📚 Index already built, skipping rebuild');
 			return;
 		}
 
-		console.log('📚 Building local symbol index from cached files...');
+		console.error('📚 Building local symbol index from cached files...');
 
 		// Validate cache directory exists
 		if (!existsSync(this.cacheDir)) {
@@ -47,7 +47,7 @@ export class LocalSymbolIndex {
 
 		// Read all JSON files in the docs directory
 		const files = readdirSync(this.cacheDir).filter(file => file.endsWith('.json'));
-		console.log(`📁 Found ${files.length} cached files`);
+		console.error(`📁 Found ${files.length} cached files`);
 
 		let processedCount = 0;
 		let errorCount = 0;
@@ -75,7 +75,7 @@ export class LocalSymbolIndex {
 		}
 
 		this.indexBuilt = true;
-		console.log(`✅ Local symbol index built with ${this.symbols.size} symbols (${processedCount} files processed, ${errorCount} errors)`);
+		console.error(`✅ Local symbol index built with ${this.symbols.size} symbols (${processedCount} files processed, ${errorCount} errors)`);
 	}
 
 	search(query: string, maxResults = 20): LocalSymbolIndexEntry[] {

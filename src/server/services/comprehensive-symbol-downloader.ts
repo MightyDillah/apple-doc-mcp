@@ -54,20 +54,20 @@ export class ComprehensiveSymbolDownloader {
 			);
 		}
 
-		console.log(`🚀 Starting comprehensive symbol download for ${activeTechnology.title}`);
-		console.log('⏳ This will download additional symbols to improve search results...');
+		console.error(`🚀 Starting comprehensive symbol download for ${activeTechnology.title}`);
+		console.error('⏳ This will download additional symbols to improve search results...');
 
 		// Load main framework data
 		const frameworkData = await this.client.getFramework(activeTechnology.title);
 
 		// Extract all identifiers from main framework
 		const initialIdentifiers = this.extractAllIdentifiers(frameworkData);
-		console.log(`📋 Found ${initialIdentifiers.length} initial identifiers to process`);
+		console.error(`📋 Found ${initialIdentifiers.length} initial identifiers to process`);
 
 		// Start recursive download
 		await this.downloadSymbolsRecursively(initialIdentifiers);
 
-		console.log(`✅ Download completed! Total symbols downloaded: ${this.downloadedSymbols.size}`);
+		console.error(`✅ Download completed! Total symbols downloaded: ${this.downloadedSymbols.size}`);
 	}
 
 	private async delay(ms: number): Promise<void> {
@@ -127,7 +127,7 @@ export class ComprehensiveSymbolDownloader {
 		const totalToProcess = identifiers.length;
 		let processed = 0;
 
-		console.log(`📥 Processing ${totalToProcess} symbols (depth ${depth})...`);
+		console.error(`📥 Processing ${totalToProcess} symbols (depth ${depth})...`);
 
 		const promises = identifiers.map(async identifier => {
 			if (this.downloadedSymbols.has(identifier)) {
@@ -136,7 +136,7 @@ export class ComprehensiveSymbolDownloader {
 
 			processed++;
 			if (processed % 10 === 0 || processed === totalToProcess) {
-				console.log(`📥 Progress: ${processed}/${totalToProcess} symbols processed (${this.downloadedSymbols.size} total downloaded)`);
+				console.error(`📥 Progress: ${processed}/${totalToProcess} symbols processed (${this.downloadedSymbols.size} total downloaded)`);
 			}
 
 			// Rate limiting
@@ -160,10 +160,10 @@ export class ComprehensiveSymbolDownloader {
 
 		// Recursively download new identifiers (with depth limit to prevent infinite recursion)
 		if (newIdentifiers.length > 0 && depth < 3) {
-			console.log(`🔍 Found ${newIdentifiers.length} new identifiers to download (depth ${depth + 1})`);
+			console.error(`🔍 Found ${newIdentifiers.length} new identifiers to download (depth ${depth + 1})`);
 			await this.downloadSymbolsRecursively(newIdentifiers, depth + 1);
 		} else if (newIdentifiers.length > 0) {
-			console.log(`⚠️ Stopping recursion at depth ${depth} to prevent infinite loops`);
+			console.error(`⚠️ Stopping recursion at depth ${depth} to prevent infinite loops`);
 		}
 	}
 }

@@ -10,6 +10,9 @@ if you find this MCP helpful, I'd really apperciate it if you clicked on the [�
 
 Please enjoy the new update the new symbol search is more robust! Thank you to @christopherbattlefrontlegal and @Indading for sponsoring! you guys rock. Please contribute what you can, my aim is to get $100 a month so i can at least fund a claude code account which I will dedicate only to this project.
 
+- 1.9.0
+  - Moved cached docs into `.cache/` to keep the repo clean
+  - Routed MCP logging to stderr so protocol stdout stays clean (this was breaking codex symbol search)
 - 1.8.9
   - MAJOR FIX: Fixed critical cache inconsistency causing unreliable symbol search results
   - MAJOR FIX: Implemented stateful LocalSymbolIndex to eliminate index rebuilds on every search
@@ -79,6 +82,11 @@ Claude Code:
 claude mcp add apple-docs -- npx apple-doc-mcp-server@latest
 ```
 
+OpenAI Codex:
+```bash
+codex mcp add apple-doc-mcp -- npx @apple-doc-mcp-server@latest 
+```
+
 Or using node with the built file:
 ```json
 {
@@ -93,8 +101,8 @@ Or using node with the built file:
 
 For local development:
 ```bash
-npm install
-npm build
+pnpm install
+pnpm build
 ```
 
 ## 🔄 Typical Workflow
@@ -119,6 +127,7 @@ npm build
 - Use wildcards (`"Grid*"`, `"*Item"`, `"Lazy*"`) for flexible matching.
 - Use multiple keywords (`"tab view layout"`) to narrow results.
 - If nothing turns up, re-run `discover_technologies` with a different keyword or pick another framework.
+- Cache now lives in `.cache/` to avoid clutter.
 
 ## 🧰 Available Tools
 - `discover_technologies` – browse/filter frameworks before selecting one.

@@ -21,9 +21,9 @@ export const buildSearchSymbolsHandler = (context: ServerContext) => {
 		// Build local index from cached files if not already built
 		if (techLocalIndex.getSymbolCount() === 0) {
 			try {
-				console.log('📚 Building symbol index from cache...');
+				console.error('📚 Building symbol index from cache...');
 				await techLocalIndex.buildIndexFromCache();
-				console.log(`✅ Index built with ${techLocalIndex.getSymbolCount()} symbols`);
+				console.error(`✅ Index built with ${techLocalIndex.getSymbolCount()} symbols`);
 			} catch (error) {
 				console.warn('Failed to build local symbol index:', error instanceof Error ? error.message : String(error));
 			}
@@ -35,7 +35,7 @@ export const buildSearchSymbolsHandler = (context: ServerContext) => {
 
 		if (symbolResults.length === 0 && techLocalIndex.getSymbolCount() < 50) {
 			// Fallback: search framework.references directly (fast, no download needed)
-			console.log('📋 Using framework references for search...');
+			console.error('📋 Using framework references for search...');
 			const frameworkResults = await client.searchFramework(activeTechnology.title, query, {maxResults: maxResults * 2, platform, symbolType});
 			symbolResults = frameworkResults.map(r => ({
 				id: r.path ?? r.title,
@@ -160,4 +160,3 @@ export const buildSearchSymbolsHandler = (context: ServerContext) => {
 		};
 	};
 };
-
