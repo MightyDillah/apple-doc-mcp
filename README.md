@@ -8,7 +8,7 @@ if you find this MCP helpful, I'd really apperciate it if you clicked on the [‚ù
 
 ## üìã Changelog
 
-Please enjoy the new update the new symbol search is more robust! Thank you to @christopherbattlefrontlegal and @Indading for sponsoring! you guys rock. Please contribute what you can, my aim is to get $100 a month so i can at least fund a claude code account which I will dedicate only to this project.
+New symbol search! Thank you to @christopherbattlefrontlegal and @Indading for sponsoring! you guys rock. Please contribute what you can, my aim is to get $100 a month so i can at least fund a claude code account which I will dedicate only to this project.
 
 - 1.9.0
   - Moved cached docs into `.cache/` to keep the repo clean
