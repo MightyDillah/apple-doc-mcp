@@ -1,6 +1,6 @@
 {
   "name": "apple-doc-mcp-server",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "MCP server providing seamless access to Apple Developer Documentation with smart search and wildcard support",
   "main": "dist/index.js",
   "type": "module",
@@ -11,8 +11,7 @@
     "dist/",
     "README.md",
     "LICENSE",
-    ".xo-config.js",
-    "docs/technologies.json"
+    ".xo-config.js"
   ],
   "keywords": [
     "mcp",

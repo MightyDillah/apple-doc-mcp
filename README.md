@@ -10,7 +10,7 @@ if you find this MCP helpful, I'd really apperciate it if you clicked on the [‚ù
 
 New symbol search! Thank you to @christopherbattlefrontlegal and @Indading for sponsoring! you guys rock. Please contribute what you can, my aim is to get $100 a month so i can at least fund a claude code account which I will dedicate only to this project.
 
-- 1.9.0
+- 1.9.1
   - Moved cached docs into `.cache/` to keep the repo clean
   - Routed MCP logging to stderr so protocol stdout stays clean (this was breaking codex symbol search)
 - 1.8.9
