@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {
 	type AppleDevDocsClient, type SymbolData, type ReferenceData, type FrameworkData,
 } from '../../apple-client.js';
+import {tokenize, createSearchTokens} from '../utils/tokenizer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -80,7 +81,7 @@ export class LocalSymbolIndex {
 
 	search(query: string, maxResults = 20): LocalSymbolIndexEntry[] {
 		const results: Array<{entry: LocalSymbolIndexEntry; score: number}> = [];
-		const queryTokens = this.tokenize(query);
+		const queryTokens = tokenize(query);
 
 		// Check if query contains wildcards
 		const hasWildcards = query.includes('*') || query.includes('?');
@@ -160,39 +161,6 @@ export class LocalSymbolIndex {
 		return true;
 	}
 
-	private tokenize(text: string): string[] {
-		if (!text) {
-			return [];
-		}
-
-		const tokens = new Set<string>();
-
-		// Split on common delimiters
-		const basicTokens = text.split(/[\s/._-]+/).filter(Boolean);
-
-		for (const token of basicTokens) {
-			// Add lowercase version
-			tokens.add(token.toLowerCase());
-
-			// Add original case version for exact matches
-			tokens.add(token);
-
-			// Handle camelCase/PascalCase (e.g., GridItem -> grid, item, griditem)
-			const camelParts = token.split(/(?=[A-Z])/).filter(Boolean);
-			if (camelParts.length > 1) {
-				for (const part of camelParts) {
-					tokens.add(part.toLowerCase());
-					tokens.add(part);
-				}
-
-				// Add concatenated lowercase version
-				tokens.add(camelParts.join('').toLowerCase());
-			}
-		}
-
-		return [...tokens];
-	}
-
 	private processSymbolData(data: SymbolData | FrameworkData, filePath: string): void {
 		const title = data.metadata?.title || 'Unknown';
 		const path = (data.metadata && 'url' in data.metadata && typeof data.metadata.url === 'string') ? data.metadata.url : '';
@@ -210,7 +178,7 @@ export class LocalSymbolIndex {
 		}
 
 		// Create comprehensive tokens
-		const tokens = this.createTokens(title, abstract, path, platforms);
+		const tokens = createSearchTokens(title, abstract, path, platforms);
 
 		const entry: LocalSymbolIndexEntry = {
 			id: path || title,
@@ -229,31 +197,6 @@ export class LocalSymbolIndex {
 		this.processReferences(data.references, filePath);
 	}
 
-	private createTokens(title: string, abstract: string, path: string, platforms: string[]): string[] {
-		const tokens = new Set<string>();
-
-		for (const token of this.tokenize(title)) {
-			tokens.add(token);
-		}
-
-		for (const token of this.tokenize(abstract)) {
-			tokens.add(token);
-		}
-
-		for (const token of this.tokenize(path)) {
-			tokens.add(token);
-		}
-
-		// Add platform tokens
-		for (const platform of platforms) {
-			for (const token of this.tokenize(platform)) {
-				tokens.add(token);
-			}
-		}
-
-		return [...tokens];
-	}
-
 	private processReferences(references: Record<string, ReferenceData> | undefined, filePath: string): void {
 		if (!references) {
 			return;
@@ -270,7 +213,7 @@ export class LocalSymbolIndex {
 					}
 				}
 
-				const refTokens = this.createTokens(
+				const refTokens = createSearchTokens(
 					ref.title,
 					this.client.extractText(ref.abstract ?? []),
 					ref.url || '',

@@ -1,29 +1,5 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
-const tokenize = (value) => {
-    if (!value) {
-        return [];
-    }
-    const tokens = new Set();
-    // Split on common delimiters
-    const basicTokens = value.split(/[\s/._-]+/).filter(Boolean);
-    for (const token of basicTokens) {
-        // Add lowercase version
-        tokens.add(token.toLowerCase());
-        // Add original case version for exact matches
-        tokens.add(token);
-        // Handle camelCase/PascalCase (e.g., GridItem -> grid, item, griditem)
-        const camelParts = token.split(/(?=[A-Z])/).filter(Boolean);
-        if (camelParts.length > 1) {
-            for (const part of camelParts) {
-                tokens.add(part.toLowerCase());
-                tokens.add(part);
-            }
-            // Add concatenated lowercase version
-            tokens.add(camelParts.join('').toLowerCase());
-        }
-    }
-    return [...tokens];
-};
+import { createSearchTokens } from '../utils/tokenizer.js';
 export const loadActiveFrameworkData = async ({ client, state }) => {
     const activeTechnology = state.getActiveTechnology();
     if (!activeTechnology) {
@@ -44,18 +20,9 @@ export const loadActiveFrameworkData = async ({ client, state }) => {
     return data;
 };
 const buildEntry = (id, ref, extractText) => {
-    const tokens = new Set();
-    for (const token of tokenize(ref.title)) {
-        tokens.add(token);
-    }
-    for (const token of tokenize(ref.url)) {
-        tokens.add(token);
-    }
     const abstractText = extractText(ref.abstract);
-    for (const token of tokenize(abstractText)) {
-        tokens.add(token);
-    }
-    return { id, ref, tokens: [...tokens] };
+    const tokens = createSearchTokens(ref.title ?? '', abstractText, ref.url ?? '', ref.platforms?.map(p => p.name).filter(Boolean) ?? []);
+    return { id, ref, tokens };
 };
 const processReferences = (references, index, extractText) => {
     for (const [id, ref] of Object.entries(references)) {

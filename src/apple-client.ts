@@ -5,6 +5,22 @@ import type {
 	FrameworkData, SymbolData, Technology, SearchResult,
 } from './apple-client/types/index.js';
 
+/**
+ * Type guard to validate a Technology object from API response.
+ */
+const isTechnology = (value: unknown): value is Technology => {
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+
+	const candidate = value as Record<string, unknown>;
+	return (
+		typeof candidate.identifier === 'string'
+		&& typeof candidate.title === 'string'
+		&& typeof candidate.url === 'string'
+	);
+};
+
 // Re-export types for backward compatibility
 export type {
 	PlatformInfo,
@@ -71,14 +87,23 @@ export class AppleDevDocsClient {
 		const response = await this.httpClient.getDocumentation<unknown>('documentation/technologies');
 
 		// The API returns a structure with 'references' containing the technologies
-		let technologies: Record<string, Technology> = {};
+		const technologies: Record<string, Technology> = {};
 
 		if (response && typeof response === 'object') {
-			if ('references' in response && response.references) {
-				technologies = response.references as Record<string, Technology>;
-			} else if (typeof response === 'object' && !Array.isArray(response)) {
-				// Fallback: treat the whole response as technologies if no references key
-				technologies = response as Record<string, Technology>;
+			let refs: Record<string, unknown> = {};
+			if ('references' in response && response.references && typeof response.references === 'object') {
+				refs = response.references as Record<string, unknown>;
+			} else if (Array.isArray(response)) {
+				refs = {};
+			} else {
+				refs = response as Record<string, unknown>;
+			}
+
+			// Validate each entry before adding
+			for (const [key, value] of Object.entries(refs)) {
+				if (isTechnology(value)) {
+					technologies[key] = value;
+				}
 			}
 		}
 
@@ -95,14 +120,23 @@ export class AppleDevDocsClient {
 		const response = await this.httpClient.getDocumentation<unknown>('documentation/technologies');
 
 		// The API returns a structure with 'references' containing the technologies
-		let technologies: Record<string, Technology> = {};
+		const technologies: Record<string, Technology> = {};
 
 		if (response && typeof response === 'object') {
-			if ('references' in response && response.references) {
-				technologies = response.references as Record<string, Technology>;
-			} else if (typeof response === 'object' && !Array.isArray(response)) {
-				// Fallback: treat the whole response as technologies if no references key
-				technologies = response as Record<string, Technology>;
+			let refs: Record<string, unknown> = {};
+			if ('references' in response && response.references && typeof response.references === 'object') {
+				refs = response.references as Record<string, unknown>;
+			} else if (Array.isArray(response)) {
+				refs = {};
+			} else {
+				refs = response as Record<string, unknown>;
+			}
+
+			// Validate each entry before adding
+			for (const [key, value] of Object.entries(refs)) {
+				if (isTechnology(value)) {
+					technologies[key] = value;
+				}
 			}
 		}
 
