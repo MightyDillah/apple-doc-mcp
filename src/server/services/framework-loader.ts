@@ -1,39 +1,7 @@
 import {ErrorCode, McpError} from '@modelcontextprotocol/sdk/types.js';
 import type {FrameworkData, ReferenceData, SymbolData} from '../../apple-client.js';
 import type {ServerContext} from '../context.js';
-
-const tokenize = (value: string | undefined): string[] => {
-	if (!value) {
-		return [];
-	}
-
-	const tokens = new Set<string>();
-
-	// Split on common delimiters
-	const basicTokens = value.split(/[\s/._-]+/).filter(Boolean);
-
-	for (const token of basicTokens) {
-		// Add lowercase version
-		tokens.add(token.toLowerCase());
-
-		// Add original case version for exact matches
-		tokens.add(token);
-
-		// Handle camelCase/PascalCase (e.g., GridItem -> grid, item, griditem)
-		const camelParts = token.split(/(?=[A-Z])/).filter(Boolean);
-		if (camelParts.length > 1) {
-			for (const part of camelParts) {
-				tokens.add(part.toLowerCase());
-				tokens.add(part);
-			}
-
-			// Add concatenated lowercase version
-			tokens.add(camelParts.join('').toLowerCase());
-		}
-	}
-
-	return [...tokens];
-};
+import {createSearchTokens} from '../utils/tokenizer.js';
 
 export const loadActiveFrameworkData = async ({client, state}: ServerContext): Promise<FrameworkData> => {
 	const activeTechnology = state.getActiveTechnology();
@@ -65,21 +33,14 @@ export const loadActiveFrameworkData = async ({client, state}: ServerContext): P
 };
 
 const buildEntry = (id: string, ref: ReferenceData, extractText: (abstract?: ReferenceData['abstract']) => string) => {
-	const tokens = new Set<string>();
-	for (const token of tokenize(ref.title)) {
-		tokens.add(token);
-	}
-
-	for (const token of tokenize(ref.url)) {
-		tokens.add(token);
-	}
-
 	const abstractText = extractText(ref.abstract);
-	for (const token of tokenize(abstractText)) {
-		tokens.add(token);
-	}
-
-	return {id, ref, tokens: [...tokens]};
+	const tokens = createSearchTokens(
+		ref.title ?? '',
+		abstractText,
+		ref.url ?? '',
+		ref.platforms?.map(p => p.name).filter(Boolean) ?? [],
+	);
+	return {id, ref, tokens};
 };
 
 const processReferences = (
