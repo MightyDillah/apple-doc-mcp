@@ -36,7 +36,9 @@ export const buildSearchSymbolsHandler = (context: ServerContext) => {
 		if (symbolResults.length === 0 && techLocalIndex.getSymbolCount() < 50) {
 			// Fallback: search framework.references directly (fast, no download needed)
 			console.error('📋 Using framework references for search...');
-			const frameworkResults = await client.searchFramework(activeTechnology.title, query, {maxResults: maxResults * 2, platform, symbolType});
+			const identifierParts = activeTechnology.identifier.split('/');
+			const frameworkName = identifierParts.at(-1) ?? activeTechnology.title;
+			const frameworkResults = await client.searchFramework(frameworkName, query, {maxResults: maxResults * 2, platform, symbolType});
 			symbolResults = frameworkResults.map(r => ({
 				id: r.path ?? r.title,
 				title: r.title,
