@@ -1,7 +1,41 @@
 import type {ServerContext, ToolResponse} from '../context.js';
-import {LocalSymbolIndex, type LocalSymbolIndexEntry} from '../services/local-symbol-index.js';
-import {header, bold} from '../markdown.js';
+import {type LocalSymbolIndexEntry} from '../services/local-symbol-index.js';
+import {header, bold, trimWithEllipsis} from '../markdown.js';
 import {buildNoTechnologyMessage} from './no-technology.js';
+
+// Format symbol kind with display name
+const formatKind = (kind: string): string => {
+	const kindMap: Record<string, string> = {
+		class: 'Class',
+		struct: 'Structure',
+		protocol: 'Protocol',
+		enum: 'Enumeration',
+		func: 'Function',
+		method: 'Method',
+		property: 'Property',
+		var: 'Variable',
+		typealias: 'Type Alias',
+		init: 'Initializer',
+		deinit: 'Deinitializer',
+		subscript: 'Subscript',
+		operator: 'Operator',
+		macro: 'Macro',
+		symbol: 'Symbol',
+	};
+	return kindMap[kind.toLowerCase()] ?? kind;
+};
+
+// Extract parent context from path (e.g., "SwiftUI.View" from full path)
+const extractParentContext = (path: string, title: string): string | undefined => {
+	const parts = path.split('/');
+	// Find the symbol in the path and get its parent
+	const symbolIndex = parts.indexOf(title);
+	if (symbolIndex > 1) {
+		return parts[symbolIndex - 1];
+	}
+
+	return undefined;
+};
 
 export const buildSearchSymbolsHandler = (context: ServerContext) => {
 	const {client, state} = context;
@@ -112,13 +146,19 @@ export const buildSearchSymbolsHandler = (context: ServerContext) => {
 
 		if (filteredResults.length > 0) {
 			for (const result of filteredResults) {
+				const kindDisplay = formatKind(result.kind);
 				const platforms = result.platforms.length > 0 ? result.platforms.join(', ') : 'All platforms';
+				const parentContext = extractParentContext(result.path, result.title);
+				const titleDisplay = parentContext ? `${parentContext}.${result.title}` : result.title;
+				const abstractDisplay = result.abstract ? trimWithEllipsis(result.abstract, 150) : '';
+
 				lines.push(
-					`### ${result.title}`,
-					`   • **Kind:** ${result.kind}`,
-					`   • **Path:** ${result.path}`,
-					`   • **Platforms:** ${platforms}`,
-					`   ${result.abstract}`,
+					`### ${titleDisplay}`,
+					`\`${kindDisplay}\` • ${platforms}`,
+					'',
+					abstractDisplay,
+					'',
+					`📄 \`${result.path}\``,
 					'',
 				);
 			}

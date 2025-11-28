@@ -30,6 +30,18 @@ export type {
 	Technology,
 	TopicSection,
 	ReferenceData,
+	// New content types
+	PrimaryContentSection,
+	DeclarationsSection,
+	ParametersSection,
+	ContentSection,
+	MentionsSection,
+	Declaration,
+	DeclarationToken,
+	ContentBlock,
+	InlineContent,
+	ParameterContent,
+	Fragment,
 } from './apple-client/types/index.js';
 
 export class AppleDevDocsClient {

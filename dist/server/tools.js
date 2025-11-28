@@ -5,6 +5,7 @@ import { buildCurrentTechnologyHandler } from './handlers/current-technology.js'
 import { buildGetDocumentationHandler } from './handlers/get-documentation.js';
 import { buildSearchSymbolsHandler } from './handlers/search-symbols.js';
 import { buildVersionHandler } from './handlers/version.js';
+import { buildCacheStatusHandler } from './handlers/cache-status.js';
 export const registerTools = (server, context) => {
     const discoverHandler = buildDiscoverHandler(context);
     server.registerTool('discover_technologies', {
@@ -51,5 +52,9 @@ export const registerTools = (server, context) => {
     server.registerTool('get_version', {
         description: 'Get the current version information of the Apple Doc MCP server',
     }, async () => versionHandler());
+    const cacheStatusHandler = buildCacheStatusHandler();
+    server.registerTool('cache_status', {
+        description: 'View cache status including cached frameworks, size, and diagnostic information',
+    }, async () => cacheStatusHandler());
 };
 //# sourceMappingURL=tools.js.map

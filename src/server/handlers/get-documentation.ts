@@ -1,11 +1,165 @@
 import {ErrorCode, McpError} from '@modelcontextprotocol/sdk/types.js';
 import type {ServerContext, ToolResponse} from '../context.js';
-import type {SymbolData, ReferenceData} from '../../apple-client.js';
-import {bold, header, trimWithEllipsis} from '../markdown.js';
+import type {
+	SymbolData,
+	ReferenceData,
+	PrimaryContentSection,
+	DeclarationsSection,
+	ParametersSection,
+	ContentSection,
+	PlatformInfo,
+	InlineContent,
+	ContentBlock,
+} from '../../apple-client.js';
+import {
+	bold,
+	header,
+	trimWithEllipsis,
+	codeBlock,
+	availabilityBadge,
+} from '../markdown.js';
 import {loadActiveFrameworkData} from '../services/framework-loader.js';
 import {buildNoTechnologyMessage} from './no-technology.js';
 
-const formatIdentifiers = (identifiers: string[], references: Record<string, ReferenceData> | undefined, client: ServerContext['client']): string[] => {
+// Extract declaration string from tokens
+const formatDeclaration = (section: DeclarationsSection): string[] => {
+	const content: string[] = [];
+	const decl = section.declarations[0];
+	if (!decl) {
+		return content;
+	}
+
+	const declText = decl.tokens.map(t => t.text).join('');
+	const language = decl.languages[0] ?? 'swift';
+	content.push('', header(2, 'Declaration'), '', codeBlock(declText, language));
+	return content;
+};
+
+// Format parameters section
+const formatParameters = (section: ParametersSection): string[] => {
+	const content: string[] = [];
+	if (section.parameters.length === 0) {
+		return content;
+	}
+
+	content.push('', header(2, 'Parameters'), '');
+	for (const parameter of section.parameters) {
+		const desc = extractInlineText(parameter.content);
+		content.push(`• **${parameter.name}**: ${desc}`);
+	}
+
+	return content;
+};
+
+// Extract text from inline content recursively
+const extractInlineText = (blocks: ContentBlock[]): string => {
+	const texts: string[] = [];
+	for (const block of blocks) {
+		if (block.inlineContent) {
+			texts.push(extractFromInline(block.inlineContent));
+		}
+
+		if (block.text) {
+			texts.push(block.text);
+		}
+	}
+
+	return texts.join(' ').trim();
+};
+
+const extractFromInline = (items: InlineContent[]): string => {
+	const texts: string[] = [];
+	for (const item of items) {
+		if (item.text) {
+			texts.push(item.text);
+		}
+
+		if (item.code) {
+			texts.push(`\`${item.code}\``);
+		}
+
+		if (item.inlineContent) {
+			texts.push(extractFromInline(item.inlineContent));
+		}
+	}
+
+	return texts.join('');
+};
+
+// Format return value from content section
+const formatReturnValue = (section: ContentSection): string[] => {
+	const content: string[] = [];
+	// Look for return value heading
+	for (const block of section.content) {
+		if (block.type === 'heading' && block.anchor === 'return-value') {
+			content.push('', header(2, 'Return Value'), '');
+			// Get next paragraph
+			const idx = section.content.indexOf(block);
+			const nextBlock = section.content[idx + 1];
+			if (nextBlock?.inlineContent) {
+				content.push(extractFromInline(nextBlock.inlineContent));
+			}
+
+			break;
+		}
+	}
+
+	return content;
+};
+
+// Format deprecation warnings
+const formatDeprecationWarnings = (platforms: PlatformInfo[]): string[] => {
+	const deprecated = platforms.filter(p => p.deprecated);
+	if (deprecated.length === 0) {
+		return [];
+	}
+
+	const content: string[] = [''];
+	for (const p of deprecated) {
+		content.push(`> ⚠️ **Deprecated** on ${p.name}`);
+	}
+
+	content.push('');
+	return content;
+};
+
+// Format platform availability with more detail
+const formatDetailedPlatforms = (platforms: PlatformInfo[]): string => platforms
+	.filter(p => !p.unavailable)
+	.map(p => availabilityBadge(p.name, p.introducedAt, {
+		deprecated: p.deprecated,
+		beta: p.beta,
+	}))
+	.join(' | ');
+
+// Format related symbols / See Also
+const formatRelatedSymbols = (
+	references: Record<string, ReferenceData>,
+	currentTitle: string,
+): string[] => {
+	const content: string[] = [];
+	const related = Object.values(references)
+		.filter(ref => ref.title !== currentTitle && ref.kind === 'symbol')
+		.slice(0, 8);
+
+	if (related.length === 0) {
+		return content;
+	}
+
+	content.push('', header(2, 'See Also'), '');
+	for (const ref of related) {
+		const kind = ref.kind ? ` (${ref.kind})` : '';
+		content.push(`• **${ref.title}**${kind}`);
+	}
+
+	return content;
+};
+
+const formatIdentifiers = (
+	identifiers: string[],
+	references: Record<string, ReferenceData> | undefined,
+	client: ServerContext['client'],
+): string[] => {
 	const content: string[] = [];
 
 	for (const id of identifiers.slice(0, 5)) {
@@ -35,6 +189,37 @@ const formatTopicSections = (data: SymbolData, client: ServerContext['client']):
 			}
 
 			content.push('');
+		}
+	}
+
+	return content;
+};
+
+// Process all primary content sections
+const formatPrimaryContent = (sections: PrimaryContentSection[]): string[] => {
+	const content: string[] = [];
+
+	for (const section of sections) {
+		switch (section.kind) {
+			case 'declarations': {
+				content.push(...formatDeclaration(section));
+				break;
+			}
+
+			case 'parameters': {
+				content.push(...formatParameters(section));
+				break;
+			}
+
+			case 'content': {
+				content.push(...formatReturnValue(section));
+				break;
+			}
+
+			case 'mentions': {
+				// Skip mentions for now - could use for related links
+				break;
+			}
 		}
 	}
 
@@ -90,21 +275,32 @@ export const buildGetDocumentationHandler = (context: ServerContext) => {
 
 		const title = data.metadata?.title || 'Symbol';
 		const kind = data.metadata?.symbolKind || 'Unknown';
-		const platforms = client.formatPlatforms(data.metadata?.platforms ?? framework.metadata.platforms);
+		const roleHeading = data.metadata?.roleHeading;
+		const symbolPlatforms = data.metadata?.platforms ?? framework.metadata.platforms;
+		const platforms = formatDetailedPlatforms(symbolPlatforms);
 		const description = client.extractText(data.abstract);
 
 		const content: string[] = [
 			header(1, title),
 			'',
 			bold('Technology', activeTechnology.title),
-			bold('Type', kind),
+			bold('Type', roleHeading ?? kind),
 			bold('Platforms', platforms),
+			// Deprecation warnings
+			...formatDeprecationWarnings(symbolPlatforms),
+			// Declaration section
+			...(data.primaryContentSections?.length > 0
+				? formatPrimaryContent(data.primaryContentSections)
+				: []),
+			// Overview
 			'',
 			header(2, 'Overview'),
 			description,
+			// API Reference (topic sections)
+			...formatTopicSections(data, client),
+			// Related symbols / See Also
+			...(data.references ? formatRelatedSymbols(data.references, title) : []),
 		];
-
-		content.push(...formatTopicSections(data, client));
 
 		return {
 			content: [{text: content.join('\n'), type: 'text'}],
