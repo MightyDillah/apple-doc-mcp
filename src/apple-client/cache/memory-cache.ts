@@ -14,6 +14,11 @@ export class MemoryCache {
 			return cached.data as T;
 		}
 
+		// Clean up expired entry
+		if (cached) {
+			this.cache.delete(key);
+		}
+
 		return undefined;
 	}
 

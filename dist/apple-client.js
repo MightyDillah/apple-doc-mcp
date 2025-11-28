@@ -1,6 +1,18 @@
 import { HttpClient } from './apple-client/http-client.js';
 import { FileCache } from './apple-client/cache/file-cache.js';
 import { extractText, formatPlatforms } from './apple-client/formatters.js';
+/**
+ * Type guard to validate a Technology object from API response.
+ */
+const isTechnology = (value) => {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    const candidate = value;
+    return (typeof candidate.identifier === 'string'
+        && typeof candidate.title === 'string'
+        && typeof candidate.url === 'string');
+};
 export class AppleDevDocsClient {
     // Expose formatter methods for backward compatibility
     extractText = extractText;
@@ -45,14 +57,23 @@ export class AppleDevDocsClient {
         // If no cache, download from API and save
         const response = await this.httpClient.getDocumentation('documentation/technologies');
         // The API returns a structure with 'references' containing the technologies
-        let technologies = {};
+        const technologies = {};
         if (response && typeof response === 'object') {
-            if ('references' in response && response.references) {
-                technologies = response.references;
+            let refs = {};
+            if ('references' in response && response.references && typeof response.references === 'object') {
+                refs = response.references;
             }
-            else if (typeof response === 'object' && !Array.isArray(response)) {
-                // Fallback: treat the whole response as technologies if no references key
-                technologies = response;
+            else if (Array.isArray(response)) {
+                refs = {};
+            }
+            else {
+                refs = response;
+            }
+            // Validate each entry before adding
+            for (const [key, value] of Object.entries(refs)) {
+                if (isTechnology(value)) {
+                    technologies[key] = value;
+                }
             }
         }
         // Save the extracted technologies (not the full response)
@@ -65,14 +86,23 @@ export class AppleDevDocsClient {
     async refreshTechnologies() {
         const response = await this.httpClient.getDocumentation('documentation/technologies');
         // The API returns a structure with 'references' containing the technologies
-        let technologies = {};
+        const technologies = {};
         if (response && typeof response === 'object') {
-            if ('references' in response && response.references) {
-                technologies = response.references;
+            let refs = {};
+            if ('references' in response && response.references && typeof response.references === 'object') {
+                refs = response.references;
             }
-            else if (typeof response === 'object' && !Array.isArray(response)) {
-                // Fallback: treat the whole response as technologies if no references key
-                technologies = response;
+            else if (Array.isArray(response)) {
+                refs = {};
+            }
+            else {
+                refs = response;
+            }
+            // Validate each entry before adding
+            for (const [key, value] of Object.entries(refs)) {
+                if (isTechnology(value)) {
+                    technologies[key] = value;
+                }
             }
         }
         // Save the extracted technologies (not the full response)
