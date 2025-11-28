@@ -17,3 +17,36 @@ export const trimWithEllipsis = (text: string, maxLength: number): string => {
 
 	return `${text.slice(0, Math.max(0, maxLength))}...`;
 };
+
+export const codeBlock = (code: string, language = 'swift'): string => `\`\`\`${language}\n${code}\n\`\`\``;
+
+export const inlineCode = (code: string): string => `\`${code}\``;
+
+export const warning = (message: string): string => `> ⚠️ **Warning:** ${message}`;
+
+export const deprecationWarning = (platform: string, message?: string): string => {
+	const base = `> ⚠️ **Deprecated** on ${platform}`;
+	return message ? `${base}: ${message}` : base;
+};
+
+export const availabilityBadge = (platform: string, version: string, options?: {
+	deprecated?: boolean;
+	beta?: boolean;
+	unavailable?: boolean;
+}): string => {
+	const badges: string[] = [];
+	if (options?.deprecated) {
+		badges.push('⚠️');
+	}
+
+	if (options?.beta) {
+		badges.push('β');
+	}
+
+	if (options?.unavailable) {
+		return `${platform}: ~~unavailable~~`;
+	}
+
+	const prefix = badges.length > 0 ? `${badges.join('')} ` : '';
+	return `${prefix}${platform} ${version}+`;
+};

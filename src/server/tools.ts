@@ -1,5 +1,5 @@
-import type {Server} from '@modelcontextprotocol/sdk/server/index.js';
-import {CallToolRequestSchema, ListToolsRequestSchema} from '@modelcontextprotocol/sdk/types.js';
+import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
+import {z} from 'zod';
 import type {ServerContext} from './context.js';
 import {buildDiscoverHandler} from './handlers/discover.js';
 import {buildChooseTechnologyHandler} from './handlers/choose-technology.js';
@@ -7,136 +7,90 @@ import {buildCurrentTechnologyHandler} from './handlers/current-technology.js';
 import {buildGetDocumentationHandler} from './handlers/get-documentation.js';
 import {buildSearchSymbolsHandler} from './handlers/search-symbols.js';
 import {buildVersionHandler} from './handlers/version.js';
+import {buildCacheStatusHandler} from './handlers/cache-status.js';
 
-type ToolDefinition = {
-	name: string;
-	description: string;
-	inputSchema: Record<string, unknown>;
-	handler: (args: any) => Promise<{content: Array<{text: string; type: 'text'}>}>;
-};
-
-export const registerTools = (server: Server, context: ServerContext) => {
-	const toolDefinitions: ToolDefinition[] = [
+export const registerTools = (server: McpServer, context: ServerContext) => {
+	const discoverHandler = buildDiscoverHandler(context);
+	server.registerTool(
+		'discover_technologies',
 		{
-			name: 'discover_technologies',
 			description: 'Explore and filter available Apple technologies/frameworks before choosing one',
 			inputSchema: {
-				type: 'object',
-				required: [],
-				properties: {
-					page: {
-						type: 'number',
-						description: 'Optional page number (default 1)',
-					},
-					pageSize: {
-						type: 'number',
-						description: 'Optional page size (default 25, max 100)',
-					},
-					query: {
-						type: 'string',
-						description: 'Optional keyword to filter technologies',
-					},
-				},
+				page: z.number().optional().describe('Optional page number (default 1)'),
+				pageSize: z.number().optional().describe('Optional page size (default 25, max 100)'),
+				query: z.string().optional().describe('Optional keyword to filter technologies'),
 			},
-			handler: buildDiscoverHandler(context),
 		},
+		async args => discoverHandler(args),
+	);
+
+	const chooseTechnologyHandler = buildChooseTechnologyHandler(context);
+	server.registerTool(
+		'choose_technology',
 		{
-			name: 'choose_technology',
 			description: 'Select the framework/technology to scope all subsequent searches and documentation lookups',
 			inputSchema: {
-				type: 'object',
-				required: [],
-				properties: {
-					identifier: {
-						type: 'string',
-						description: 'Optional technology identifier (e.g. doc://.../SwiftUI)',
-					},
-					name: {
-						type: 'string',
-						description: 'Technology name/title (e.g. SwiftUI)',
-					},
-				},
+				identifier: z.string().optional().describe('Optional technology identifier (e.g. doc://.../SwiftUI)'),
+				name: z.string().optional().describe('Technology name/title (e.g. SwiftUI)'),
 			},
-			handler: buildChooseTechnologyHandler(context),
 		},
+		async args => chooseTechnologyHandler(args),
+	);
+
+	const currentTechnologyHandler = buildCurrentTechnologyHandler(context);
+	server.registerTool(
+		'current_technology',
 		{
-			name: 'current_technology',
 			description: 'Report the currently selected technology and how to change it',
-			inputSchema: {
-				type: 'object',
-				required: [],
-				properties: {},
-			},
-			handler: buildCurrentTechnologyHandler(context),
 		},
+		async () => currentTechnologyHandler(),
+	);
+
+	const getDocumentationHandler = buildGetDocumentationHandler(context);
+	server.registerTool(
+		'get_documentation',
 		{
-			name: 'get_documentation',
 			description: 'Get detailed documentation for specific symbols within the selected technology. '
 				+ 'Use this for known symbol names (e.g., "View", "Button", "GridItem"). Accepts relative symbol names.',
 			inputSchema: {
-				type: 'object',
-				required: ['path'],
-				properties: {
-					path: {
-						type: 'string',
-						description: 'Symbol path or relative name (e.g. "View", "GridItem", "Button")',
-					},
-				},
+				path: z.string().describe('Symbol path or relative name (e.g. "View", "GridItem", "Button")'),
 			},
-			handler: buildGetDocumentationHandler(context),
 		},
+		async args => getDocumentationHandler(args),
+	);
+
+	const searchSymbolsHandler = buildSearchSymbolsHandler(context);
+	server.registerTool(
+		'search_symbols',
 		{
-			name: 'search_symbols',
 			description: 'Search and discover symbols within the currently selected technology. '
 				+ 'Use this for exploration and finding symbols by keywords. Supports wildcards (* and ?). '
 				+ 'For specific known symbols, use get_documentation instead.',
 			inputSchema: {
-				type: 'object',
-				required: ['query'],
-				properties: {
-					maxResults: {
-						type: 'number',
-						description: 'Optional maximum number of results (default 20)',
-					},
-					platform: {
-						type: 'string',
-						description: 'Optional platform filter (iOS, macOS, etc.)',
-					},
-					query: {
-						type: 'string',
-						description: 'Search keywords with wildcard support (* for any characters, ? for single character)',
-					},
-					symbolType: {
-						type: 'string',
-						description: 'Optional symbol kind filter (class, protocol, etc.)',
-					},
-				},
+				query: z.string().describe('Search keywords with wildcard support (* for any characters, ? for single character)'),
+				maxResults: z.number().optional().describe('Optional maximum number of results (default 20)'),
+				platform: z.string().optional().describe('Optional platform filter (iOS, macOS, etc.)'),
+				symbolType: z.string().optional().describe('Optional symbol kind filter (class, protocol, etc.)'),
 			},
-			handler: buildSearchSymbolsHandler(context),
 		},
+		async args => searchSymbolsHandler(args),
+	);
+
+	const versionHandler = buildVersionHandler();
+	server.registerTool(
+		'get_version',
 		{
-			name: 'get_version',
 			description: 'Get the current version information of the Apple Doc MCP server',
-			inputSchema: {
-				type: 'object',
-				required: [],
-				properties: {},
-			},
-			handler: buildVersionHandler(),
 		},
-	];
+		async () => versionHandler(),
+	);
 
-	server.setRequestHandler(ListToolsRequestSchema, async () => ({
-		tools: toolDefinitions.map(({name, description, inputSchema}) => ({name, description, inputSchema})),
-	}));
-
-	server.setRequestHandler(CallToolRequestSchema, async request => {
-		const tool = toolDefinitions.find(entry => entry.name === request.params.name);
-		if (!tool) {
-			throw new Error(`Unknown tool: ${request.params.name}`);
-		}
-
-		return tool.handler(request.params.arguments ?? {});
-	});
+	const cacheStatusHandler = buildCacheStatusHandler();
+	server.registerTool(
+		'cache_status',
+		{
+			description: 'View cache status including cached frameworks, size, and diagnostic information',
+		},
+		async () => cacheStatusHandler(),
+	);
 };
-

@@ -70,13 +70,51 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
     ensureFramework(chosen);
     state.setActiveTechnology(chosen);
     state.clearActiveFrameworkData();
+    // Fetch framework data for overview
+    let frameworkOverview = [];
+    try {
+        const identifierParts = chosen.identifier.split('/');
+        const frameworkName = identifierParts.at(-1);
+        if (frameworkName) {
+            const framework = await client.getFramework(frameworkName);
+            // Format platforms
+            const platforms = framework.metadata?.platforms
+                ?.map(p => `${p.name} ${p.introducedAt}+`)
+                .join(', ') ?? 'All platforms';
+            // Get description
+            const description = client.extractText(framework.abstract);
+            // Get top categories from topic sections
+            const categories = framework.topicSections
+                ?.slice(0, 5)
+                .map(section => section.title) ?? [];
+            // Count total symbols from references
+            const symbolCount = Object.values(framework.references ?? {})
+                .filter(ref => ref.kind === 'symbol')
+                .length;
+            frameworkOverview = [
+                '',
+                header(2, 'Framework Overview'),
+                description ? `${description}` : '',
+                '',
+                bold('Platforms', platforms),
+                bold('Symbols', `${symbolCount} indexed`),
+                '',
+            ];
+            if (categories.length > 0) {
+                frameworkOverview.push(header(3, 'Categories'), ...categories.map(cat => `• ${cat}`), '');
+            }
+        }
+    }
+    catch {
+        // Framework data not available yet, that's OK
+    }
     const lines = [
         header(1, '✅ Technology Selected'),
         '',
         bold('Name', chosen.title),
         bold('Identifier', chosen.identifier ?? 'Unknown'),
-        '',
-        header(2, 'Next actions'),
+        ...frameworkOverview,
+        header(2, 'Next Actions'),
         '• `search_symbols { "query": "keyword" }` — fuzzy search within this framework',
         '• `get_documentation { "path": "SymbolName" }` — open a symbol page',
         '• `discover_technologies` — pick another framework',

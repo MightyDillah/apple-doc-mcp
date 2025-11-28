@@ -10,4 +10,25 @@ export const trimWithEllipsis = (text, maxLength) => {
     }
     return `${text.slice(0, Math.max(0, maxLength))}...`;
 };
+export const codeBlock = (code, language = 'swift') => `\`\`\`${language}\n${code}\n\`\`\``;
+export const inlineCode = (code) => `\`${code}\``;
+export const warning = (message) => `> ⚠️ **Warning:** ${message}`;
+export const deprecationWarning = (platform, message) => {
+    const base = `> ⚠️ **Deprecated** on ${platform}`;
+    return message ? `${base}: ${message}` : base;
+};
+export const availabilityBadge = (platform, version, options) => {
+    const badges = [];
+    if (options?.deprecated) {
+        badges.push('⚠️');
+    }
+    if (options?.beta) {
+        badges.push('β');
+    }
+    if (options?.unavailable) {
+        return `${platform}: ~~unavailable~~`;
+    }
+    const prefix = badges.length > 0 ? `${badges.join('')} ` : '';
+    return `${prefix}${platform} ${version}+`;
+};
 //# sourceMappingURL=markdown.js.map

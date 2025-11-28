@@ -1,5 +1,5 @@
 import type { FrameworkData, SymbolData, Technology, SearchResult } from './apple-client/types/index.js';
-export type { PlatformInfo, FrameworkData, SearchResult, SymbolData, Technology, TopicSection, ReferenceData, } from './apple-client/types/index.js';
+export type { PlatformInfo, FrameworkData, SearchResult, SymbolData, Technology, TopicSection, ReferenceData, PrimaryContentSection, DeclarationsSection, ParametersSection, ContentSection, MentionsSection, Declaration, DeclarationToken, ContentBlock, InlineContent, ParameterContent, Fragment, } from './apple-client/types/index.js';
 export declare class AppleDevDocsClient {
     extractText: (abstract?: Array<{
         text: string;

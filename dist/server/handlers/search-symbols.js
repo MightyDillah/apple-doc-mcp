@@ -1,5 +1,36 @@
-import { header, bold } from '../markdown.js';
+import { header, bold, trimWithEllipsis } from '../markdown.js';
 import { buildNoTechnologyMessage } from './no-technology.js';
+// Format symbol kind with display name
+const formatKind = (kind) => {
+    const kindMap = {
+        class: 'Class',
+        struct: 'Structure',
+        protocol: 'Protocol',
+        enum: 'Enumeration',
+        func: 'Function',
+        method: 'Method',
+        property: 'Property',
+        var: 'Variable',
+        typealias: 'Type Alias',
+        init: 'Initializer',
+        deinit: 'Deinitializer',
+        subscript: 'Subscript',
+        operator: 'Operator',
+        macro: 'Macro',
+        symbol: 'Symbol',
+    };
+    return kindMap[kind.toLowerCase()] ?? kind;
+};
+// Extract parent context from path (e.g., "SwiftUI.View" from full path)
+const extractParentContext = (path, title) => {
+    const parts = path.split('/');
+    // Find the symbol in the path and get its parent
+    const symbolIndex = parts.indexOf(title);
+    if (symbolIndex > 1) {
+        return parts[symbolIndex - 1];
+    }
+    return undefined;
+};
 export const buildSearchSymbolsHandler = (context) => {
     const { client, state } = context;
     const noTechnology = buildNoTechnologyMessage(context);
@@ -82,8 +113,12 @@ export const buildSearchSymbolsHandler = (context) => {
         }
         if (filteredResults.length > 0) {
             for (const result of filteredResults) {
+                const kindDisplay = formatKind(result.kind);
                 const platforms = result.platforms.length > 0 ? result.platforms.join(', ') : 'All platforms';
-                lines.push(`### ${result.title}`, `   • **Kind:** ${result.kind}`, `   • **Path:** ${result.path}`, `   • **Platforms:** ${platforms}`, `   ${result.abstract}`, '');
+                const parentContext = extractParentContext(result.path, result.title);
+                const titleDisplay = parentContext ? `${parentContext}.${result.title}` : result.title;
+                const abstractDisplay = result.abstract ? trimWithEllipsis(result.abstract, 150) : '';
+                lines.push(`### ${titleDisplay}`, `\`${kindDisplay}\` • ${platforms}`, '', abstractDisplay, '', `📄 \`${result.path}\``, '');
             }
         }
         else {
