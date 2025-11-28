@@ -54,6 +54,12 @@ export const buildGetDocumentationHandler = (context: ServerContext) => {
 		const framework = await loadActiveFrameworkData(context);
 		const identifierParts = activeTechnology.identifier.split('/');
 		const frameworkName = identifierParts.at(-1);
+		if (!frameworkName) {
+			throw new McpError(
+				ErrorCode.InvalidRequest,
+				`Invalid technology identifier: ${activeTechnology.identifier}`,
+			);
+		}
 
 		// Try path as-is first, fallback to framework-prefixed path
 		let targetPath = path;
