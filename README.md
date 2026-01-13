@@ -84,7 +84,7 @@ claude mcp add apple-docs -- npx apple-doc-mcp-server@latest
 
 OpenAI Codex:
 ```bash
-codex mcp add apple-doc-mcp -- npx @apple-doc-mcp-server@latest 
+codex mcp add apple-doc-mcp -- npx apple-doc-mcp-server@latest 
 ```
 
 Or using node with the built file:
