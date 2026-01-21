@@ -2,17 +2,7 @@ import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { bold, header, trimWithEllipsis } from '../markdown.js';
 import { loadActiveFrameworkData } from '../services/framework-loader.js';
 import { buildNoTechnologyMessage } from './no-technology.js';
-/**
- * Resolve BundleResources Info.plist key paths
- * Handles common Apple Info.plist key prefixes like NS, UI, CF, LS, WK, IN
- */
-const resolveBundleResourcesPath = (path) => {
-    // Check if this looks like an Info.plist key
-    if (/^(NS|UI|CF|LS|WK|IN|MK|CK|CN|HK|PK|SK|GK|MT|AV|CA|CI|CL|CT|EK|FM|GC|GL|IT|MA|MC|ML|MP|NK|NW|OS|PH|PS|QC|RP|SC|SF|SL|SM|SP|SS|ST|TK|TV|UN|VS|WC|WT)[A-Z]/.test(path)) {
-        return `documentation/bundleresources/information_property_list/${path.toLowerCase()}`;
-    }
-    return undefined;
-};
+import { resolveBundleResourcesPath } from '../utils/info-plist-keys.js';
 /**
  * Try to fetch symbol data from multiple candidate paths
  * Returns the data and updates attemptedPaths for error reporting

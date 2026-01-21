@@ -1,7 +1,7 @@
 import {ErrorCode, McpError} from '@modelcontextprotocol/sdk/types.js';
 import type {ServerContext, ToolResponse} from '../context.js';
 import {bold, header} from '../markdown.js';
-import {isSupportedTechnology, getTechnologyCategory} from '../../apple-client/types/technology-categories.js';
+import {isSupportedTechnology} from '../../apple-client/types/technology-categories.js';
 
 const fuzzyScore = (a: string | undefined, b: string | undefined): number => {
 	if (!a || !b) {

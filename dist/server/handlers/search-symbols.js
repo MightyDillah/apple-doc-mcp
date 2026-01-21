@@ -1,5 +1,6 @@
 import { header, bold } from '../markdown.js';
 import { buildNoTechnologyMessage } from './no-technology.js';
+import { looksLikeInfoPlistKey } from '../utils/info-plist-keys.js';
 // Absolute minimum score - anything below this is definitely noise
 const absoluteMinScore = 5;
 // Minimum results to show before relaxing threshold
@@ -46,10 +47,6 @@ const buildIndexStatusMessage = (indexerStatus, symbolCount) => {
     }
     return lines;
 };
-/**
- * Check if query looks like an Info.plist key (NS*, UI*, CF*, etc.)
- */
-const looksLikeInfoPlistKey = (query) => /^(NS|UI|CF|LS|WK|IN|MK|CK|CN|HK|PK|SK|GK|MT|AV|CA|CI|CL|CT|EK|FM|GC|GL|IT|MA|MC|ML|MP|NK|NW|OS|PH|PS|QC|RP|SC|SF|SL|SM|SP|SS|ST|TK|TV|UN|VS|WC|WT)[A-Z]/.test(query);
 const buildNoResultsMessage = (query, technologyTitle, symbolCount) => {
     const lines = [];
     // Check if this looks like a specific symbol name

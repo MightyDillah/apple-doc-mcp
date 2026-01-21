@@ -3,6 +3,7 @@ import type {LocalSymbolIndex, LocalSymbolIndexEntry, ScoredSearchResult} from '
 import type {IndexerStatus} from '../services/progressive-symbol-indexer.js';
 import {header, bold} from '../markdown.js';
 import {buildNoTechnologyMessage} from './no-technology.js';
+import {looksLikeInfoPlistKey} from '../utils/info-plist-keys.js';
 
 // Absolute minimum score - anything below this is definitely noise
 const absoluteMinScore = 5;
@@ -80,12 +81,6 @@ const buildIndexStatusMessage = (indexerStatus: IndexerStatus | undefined, symbo
 
 	return lines;
 };
-
-/**
- * Check if query looks like an Info.plist key (NS*, UI*, CF*, etc.)
- */
-const looksLikeInfoPlistKey = (query: string): boolean =>
-	/^(NS|UI|CF|LS|WK|IN|MK|CK|CN|HK|PK|SK|GK|MT|AV|CA|CI|CL|CT|EK|FM|GC|GL|IT|MA|MC|ML|MP|NK|NW|OS|PH|PS|QC|RP|SC|SF|SL|SM|SP|SS|ST|TK|TV|UN|VS|WC|WT)[A-Z]/.test(query);
 
 const buildNoResultsMessage = (query: string, technologyTitle: string, symbolCount: number): string[] => {
 	const lines: string[] = [];

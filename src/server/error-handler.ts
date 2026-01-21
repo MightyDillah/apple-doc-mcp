@@ -1,5 +1,5 @@
 import {McpError} from '@modelcontextprotocol/sdk/types.js';
-import {AppleDocError, isAppleDocError} from '../errors.js';
+import {isAppleDocError} from '../errors.js';
 import type {ToolResponse} from './context.js';
 
 type ToolHandler<T> = (args: T) => Promise<ToolResponse>;
