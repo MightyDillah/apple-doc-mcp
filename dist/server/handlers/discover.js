@@ -1,4 +1,5 @@
 import { bold, header, trimWithEllipsis } from '../markdown.js';
+import { isSupportedTechnology, getTechnologyCategory } from '../../apple-client/types/technology-categories.js';
 const formatPagination = (query, currentPage, totalPages) => {
     if (totalPages <= 1) {
         return [];
@@ -16,7 +17,8 @@ const formatPagination = (query, currentPage, totalPages) => {
 export const buildDiscoverHandler = ({ client, state }) => async (args) => {
     const { query, page = 1, pageSize = 25 } = args;
     const technologies = await client.getTechnologies();
-    const frameworks = Object.values(technologies).filter(tech => tech.kind === 'symbol' && tech.role === 'collection');
+    // Filter to include frameworks, resources (BundleResources), and articles
+    const frameworks = Object.values(technologies).filter(tech => isSupportedTechnology(tech));
     let filtered = frameworks;
     if (query) {
         const lowerQuery = query.toLowerCase();
@@ -39,7 +41,14 @@ export const buildDiscoverHandler = ({ client, state }) => async (args) => {
     ];
     for (const framework of pageItems) {
         const description = client.extractText(framework.abstract);
-        lines.push(`### ${framework.title}`);
+        const category = getTechnologyCategory(framework);
+        const categoryLabels = {
+            framework: '📦 Framework',
+            resources: '📄 Resources',
+            unknown: '❓ Unknown',
+        };
+        const categoryLabel = categoryLabels[category] ?? '❓ Unknown';
+        lines.push(`### ${framework.title}`, `   • **Type:** ${categoryLabel}`);
         if (description) {
             lines.push(`   ${trimWithEllipsis(description, 180)}`);
         }

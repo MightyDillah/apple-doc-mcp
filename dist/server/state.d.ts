@@ -1,5 +1,6 @@
 import type { FrameworkData, ReferenceData, Technology, AppleDevDocsClient } from '../apple-client.js';
 import { LocalSymbolIndex } from './services/local-symbol-index.js';
+import { ProgressiveSymbolIndexer, type IndexerStatus } from './services/progressive-symbol-indexer.js';
 export type LastDiscovery = {
     query?: string;
     results: Technology[];
@@ -16,6 +17,7 @@ export declare class ServerState {
     private readonly expandedIdentifiers;
     private lastDiscovery?;
     private localSymbolIndex?;
+    private progressiveIndexer?;
     getActiveTechnology(): Technology | undefined;
     setActiveTechnology(technology: Technology | undefined): void;
     getActiveFrameworkData(): FrameworkData | undefined;
@@ -30,5 +32,8 @@ export declare class ServerState {
     setLastDiscovery(lastDiscovery: LastDiscovery | undefined): void;
     getLocalSymbolIndex(client: AppleDevDocsClient): LocalSymbolIndex;
     clearLocalSymbolIndex(): void;
+    getProgressiveIndexer(): ProgressiveSymbolIndexer;
+    getIndexerStatus(): IndexerStatus | undefined;
+    cancelProgressiveIndexer(): void;
     private resetIndexForNewTechnology;
 }

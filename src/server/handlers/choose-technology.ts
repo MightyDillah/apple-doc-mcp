@@ -1,7 +1,7 @@
 import {ErrorCode, McpError} from '@modelcontextprotocol/sdk/types.js';
 import type {ServerContext, ToolResponse} from '../context.js';
 import {bold, header} from '../markdown.js';
-import {ServerState} from '../state.js';
+import {isSupportedTechnology, getTechnologyCategory} from '../../apple-client/types/technology-categories.js';
 
 const fuzzyScore = (a: string | undefined, b: string | undefined): number => {
 	if (!a || !b) {
@@ -25,12 +25,12 @@ const fuzzyScore = (a: string | undefined, b: string | undefined): number => {
 	return 3;
 };
 
-const ensureFramework = (technology: {kind?: string; role?: string; title?: string}): void => {
-	if (technology.kind !== 'symbol' || technology.role !== 'collection') {
-		throw new McpError(
-			ErrorCode.InvalidRequest,
-			`${technology.title ?? 'Unknown technology'} is not a framework collection. Please choose a framework technology instead.`,
-		);
+const ensureSupportedTechnology = (technology: {kind?: string; role?: string; title?: string}): void => {
+	if (!isSupportedTechnology(technology)) {
+		const techName = technology.title ?? 'Unknown technology';
+		const message = `${techName} is not a supported technology type (kind: ${technology.kind}, role: ${technology.role}). `
+			+ 'Please choose a framework, resource collection, or article technology instead.';
+		throw new McpError(ErrorCode.InvalidRequest, message);
 	}
 };
 
@@ -89,15 +89,31 @@ export const buildChooseTechnologyHandler = ({client, state}: ServerContext) =>
 			};
 		}
 
-		ensureFramework(chosen);
+		ensureSupportedTechnology(chosen);
 		state.setActiveTechnology(chosen);
 		state.clearActiveFrameworkData();
+
+		// Start progressive background indexing for the selected technology
+		const localIndex = state.getLocalSymbolIndex(client);
+		const progressiveIndexer = state.getProgressiveIndexer();
+		void (async () => {
+			try {
+				await progressiveIndexer.startIndexing(client, chosen.title, chosen.identifier, localIndex);
+			} catch (error: unknown) {
+				console.error(
+					'Background indexing failed:',
+					error instanceof Error ? error.message : String(error),
+				);
+			}
+		})();
 
 		const lines = [
 			header(1, '✅ Technology Selected'),
 			'',
 			bold('Name', chosen.title),
 			bold('Identifier', chosen.identifier ?? 'Unknown'),
+			'',
+			'📚 **Background indexing started** — symbol search will improve as more symbols are indexed.',
 			'',
 			header(2, 'Next actions'),
 			'• `search_symbols { "query": "keyword" }` — fuzzy search within this framework',

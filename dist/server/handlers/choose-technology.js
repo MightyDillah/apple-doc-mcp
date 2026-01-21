@@ -1,5 +1,6 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { bold, header } from '../markdown.js';
+import { isSupportedTechnology } from '../../apple-client/types/technology-categories.js';
 const fuzzyScore = (a, b) => {
     if (!a || !b) {
         return Number.POSITIVE_INFINITY;
@@ -17,9 +18,12 @@ const fuzzyScore = (a, b) => {
     }
     return 3;
 };
-const ensureFramework = (technology) => {
-    if (technology.kind !== 'symbol' || technology.role !== 'collection') {
-        throw new McpError(ErrorCode.InvalidRequest, `${technology.title ?? 'Unknown technology'} is not a framework collection. Please choose a framework technology instead.`);
+const ensureSupportedTechnology = (technology) => {
+    if (!isSupportedTechnology(technology)) {
+        const techName = technology.title ?? 'Unknown technology';
+        const message = `${techName} is not a supported technology type (kind: ${technology.kind}, role: ${technology.role}). `
+            + 'Please choose a framework, resource collection, or article technology instead.';
+        throw new McpError(ErrorCode.InvalidRequest, message);
     }
 };
 export const buildChooseTechnologyHandler = ({ client, state }) => async (args) => {
@@ -67,14 +71,27 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
             content: [{ text: lines.join('\n'), type: 'text' }],
         };
     }
-    ensureFramework(chosen);
+    ensureSupportedTechnology(chosen);
     state.setActiveTechnology(chosen);
     state.clearActiveFrameworkData();
+    // Start progressive background indexing for the selected technology
+    const localIndex = state.getLocalSymbolIndex(client);
+    const progressiveIndexer = state.getProgressiveIndexer();
+    void (async () => {
+        try {
+            await progressiveIndexer.startIndexing(client, chosen.title, chosen.identifier, localIndex);
+        }
+        catch (error) {
+            console.error('Background indexing failed:', error instanceof Error ? error.message : String(error));
+        }
+    })();
     const lines = [
         header(1, '✅ Technology Selected'),
         '',
         bold('Name', chosen.title),
         bold('Identifier', chosen.identifier ?? 'Unknown'),
+        '',
+        '📚 **Background indexing started** — symbol search will improve as more symbols are indexed.',
         '',
         header(2, 'Next actions'),
         '• `search_symbols { "query": "keyword" }` — fuzzy search within this framework',

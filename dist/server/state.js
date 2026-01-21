@@ -1,4 +1,5 @@
 import { LocalSymbolIndex } from './services/local-symbol-index.js';
+import { ProgressiveSymbolIndexer } from './services/progressive-symbol-indexer.js';
 export class ServerState {
     activeTechnology;
     activeFrameworkData;
@@ -6,6 +7,7 @@ export class ServerState {
     expandedIdentifiers = new Set();
     lastDiscovery;
     localSymbolIndex;
+    progressiveIndexer;
     getActiveTechnology() {
         return this.activeTechnology;
     }
@@ -63,8 +65,21 @@ export class ServerState {
     clearLocalSymbolIndex() {
         this.localSymbolIndex = undefined;
     }
+    getProgressiveIndexer() {
+        this.progressiveIndexer ??= new ProgressiveSymbolIndexer();
+        return this.progressiveIndexer;
+    }
+    getIndexerStatus() {
+        return this.progressiveIndexer?.getStatus();
+    }
+    cancelProgressiveIndexer() {
+        this.progressiveIndexer?.cancel();
+    }
     // Reset index when technology changes
     resetIndexForNewTechnology() {
+        // Cancel any running indexer
+        this.progressiveIndexer?.cancel();
+        this.progressiveIndexer = undefined;
         this.localSymbolIndex = undefined;
         this.activeFrameworkData = undefined;
         this.frameworkIndex = undefined;

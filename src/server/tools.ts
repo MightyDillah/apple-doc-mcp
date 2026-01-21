@@ -1,4 +1,4 @@
-import type {Server} from '@modelcontextprotocol/sdk/server/index.js';
+import type {McpServer} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {CallToolRequestSchema, ListToolsRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 import type {ServerContext} from './context.js';
 import {buildDiscoverHandler} from './handlers/discover.js';
@@ -7,67 +7,58 @@ import {buildCurrentTechnologyHandler} from './handlers/current-technology.js';
 import {buildGetDocumentationHandler} from './handlers/get-documentation.js';
 import {buildSearchSymbolsHandler} from './handlers/search-symbols.js';
 import {buildVersionHandler} from './handlers/version.js';
+import {withErrorHandling} from './error-handler.js';
+
+type ToolResponse = {content: Array<{text: string; type: 'text'}>; isError?: boolean};
 
 type ToolDefinition = {
 	name: string;
 	description: string;
 	inputSchema: Record<string, unknown>;
-	handler: (args: any) => Promise<{content: Array<{text: string; type: 'text'}>}>;
+	handler: (args: Record<string, unknown>) => Promise<ToolResponse>;
 };
 
-export const registerTools = (server: Server, context: ServerContext) => {
+// Helper to wrap handlers with runtime type coercion
+const asToolHandler = <T>(
+	handler: (args: T) => Promise<ToolResponse>,
+): ((args: Record<string, unknown>) => Promise<ToolResponse>) =>
+	handler as (args: Record<string, unknown>) => Promise<ToolResponse>;
+
+export const registerTools = (mcpServer: McpServer, context: ServerContext) => {
+	// Access the underlying Server instance for JSON Schema-based tool registration
+	const {server} = mcpServer;
+
 	const toolDefinitions: ToolDefinition[] = [
 		{
 			name: 'discover_technologies',
 			description: 'Explore and filter available Apple technologies/frameworks before choosing one',
 			inputSchema: {
 				type: 'object',
-				required: [],
 				properties: {
-					page: {
-						type: 'number',
-						description: 'Optional page number (default 1)',
-					},
-					pageSize: {
-						type: 'number',
-						description: 'Optional page size (default 25, max 100)',
-					},
-					query: {
-						type: 'string',
-						description: 'Optional keyword to filter technologies',
-					},
+					page: {type: 'number', description: 'Optional page number (default 1)'},
+					pageSize: {type: 'number', description: 'Optional page size (default 25, max 100)'},
+					query: {type: 'string', description: 'Optional keyword to filter technologies'},
 				},
 			},
-			handler: buildDiscoverHandler(context),
+			handler: asToolHandler(withErrorHandling(buildDiscoverHandler(context))),
 		},
 		{
 			name: 'choose_technology',
 			description: 'Select the framework/technology to scope all subsequent searches and documentation lookups',
 			inputSchema: {
 				type: 'object',
-				required: [],
 				properties: {
-					identifier: {
-						type: 'string',
-						description: 'Optional technology identifier (e.g. doc://.../SwiftUI)',
-					},
-					name: {
-						type: 'string',
-						description: 'Technology name/title (e.g. SwiftUI)',
-					},
+					identifier: {type: 'string', description: 'Optional technology identifier (e.g. doc://.../SwiftUI)'},
+					name: {type: 'string', description: 'Technology name/title (e.g. SwiftUI)'},
 				},
 			},
-			handler: buildChooseTechnologyHandler(context),
+			handler: asToolHandler(withErrorHandling(buildChooseTechnologyHandler(context))),
 		},
 		{
 			name: 'current_technology',
 			description: 'Report the currently selected technology and how to change it',
-			inputSchema: {
-				type: 'object',
-				required: [],
-				properties: {},
-			},
-			handler: buildCurrentTechnologyHandler(context),
+			inputSchema: {type: 'object', properties: {}},
+			handler: asToolHandler(withErrorHandling(buildCurrentTechnologyHandler(context))),
 		},
 		{
 			name: 'get_documentation',
@@ -77,13 +68,10 @@ export const registerTools = (server: Server, context: ServerContext) => {
 				type: 'object',
 				required: ['path'],
 				properties: {
-					path: {
-						type: 'string',
-						description: 'Symbol path or relative name (e.g. "View", "GridItem", "Button")',
-					},
+					path: {type: 'string', description: 'Symbol path or relative name (e.g. "View", "GridItem", "Button")'},
 				},
 			},
-			handler: buildGetDocumentationHandler(context),
+			handler: asToolHandler(withErrorHandling(buildGetDocumentationHandler(context))),
 		},
 		{
 			name: 'search_symbols',
@@ -94,35 +82,19 @@ export const registerTools = (server: Server, context: ServerContext) => {
 				type: 'object',
 				required: ['query'],
 				properties: {
-					maxResults: {
-						type: 'number',
-						description: 'Optional maximum number of results (default 20)',
-					},
-					platform: {
-						type: 'string',
-						description: 'Optional platform filter (iOS, macOS, etc.)',
-					},
-					query: {
-						type: 'string',
-						description: 'Search keywords with wildcard support (* for any characters, ? for single character)',
-					},
-					symbolType: {
-						type: 'string',
-						description: 'Optional symbol kind filter (class, protocol, etc.)',
-					},
+					maxResults: {type: 'number', description: 'Optional maximum number of results (default 20)'},
+					platform: {type: 'string', description: 'Optional platform filter (iOS, macOS, etc.)'},
+					query: {type: 'string', description: 'Search keywords with wildcard support (* for any characters, ? for single character)'},
+					symbolType: {type: 'string', description: 'Optional symbol kind filter (class, protocol, etc.)'},
 				},
 			},
-			handler: buildSearchSymbolsHandler(context),
+			handler: asToolHandler(withErrorHandling(buildSearchSymbolsHandler(context))),
 		},
 		{
 			name: 'get_version',
 			description: 'Get the current version information of the Apple Doc MCP server',
-			inputSchema: {
-				type: 'object',
-				required: [],
-				properties: {},
-			},
-			handler: buildVersionHandler(),
+			inputSchema: {type: 'object', properties: {}},
+			handler: asToolHandler(withErrorHandling(buildVersionHandler())),
 		},
 	];
 

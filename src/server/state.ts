@@ -2,6 +2,7 @@ import type {
 	FrameworkData, ReferenceData, Technology, AppleDevDocsClient,
 } from '../apple-client.js';
 import {LocalSymbolIndex} from './services/local-symbol-index.js';
+import {ProgressiveSymbolIndexer, type IndexerStatus} from './services/progressive-symbol-indexer.js';
 
 export type LastDiscovery = {
 	query?: string;
@@ -21,6 +22,7 @@ export class ServerState {
 	private readonly expandedIdentifiers = new Set<string>();
 	private lastDiscovery?: LastDiscovery;
 	private localSymbolIndex?: LocalSymbolIndex;
+	private progressiveIndexer?: ProgressiveSymbolIndexer;
 
 	getActiveTechnology(): Technology | undefined {
 		return this.activeTechnology;
@@ -94,8 +96,25 @@ export class ServerState {
 		this.localSymbolIndex = undefined;
 	}
 
+	getProgressiveIndexer(): ProgressiveSymbolIndexer {
+		this.progressiveIndexer ??= new ProgressiveSymbolIndexer();
+		return this.progressiveIndexer;
+	}
+
+	getIndexerStatus(): IndexerStatus | undefined {
+		return this.progressiveIndexer?.getStatus();
+	}
+
+	cancelProgressiveIndexer(): void {
+		this.progressiveIndexer?.cancel();
+	}
+
 	// Reset index when technology changes
 	private resetIndexForNewTechnology() {
+		// Cancel any running indexer
+		this.progressiveIndexer?.cancel();
+		this.progressiveIndexer = undefined;
+
 		this.localSymbolIndex = undefined;
 		this.activeFrameworkData = undefined;
 		this.frameworkIndex = undefined;

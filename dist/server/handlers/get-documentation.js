@@ -2,6 +2,34 @@ import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { bold, header, trimWithEllipsis } from '../markdown.js';
 import { loadActiveFrameworkData } from '../services/framework-loader.js';
 import { buildNoTechnologyMessage } from './no-technology.js';
+/**
+ * Resolve BundleResources Info.plist key paths
+ * Handles common Apple Info.plist key prefixes like NS, UI, CF, LS, WK, IN
+ */
+const resolveBundleResourcesPath = (path) => {
+    // Check if this looks like an Info.plist key
+    if (/^(NS|UI|CF|LS|WK|IN|MK|CK|CN|HK|PK|SK|GK|MT|AV|CA|CI|CL|CT|EK|FM|GC|GL|IT|MA|MC|ML|MP|NK|NW|OS|PH|PS|QC|RP|SC|SF|SL|SM|SP|SS|ST|TK|TV|UN|VS|WC|WT)[A-Z]/.test(path)) {
+        return `documentation/bundleresources/information_property_list/${path.toLowerCase()}`;
+    }
+    return undefined;
+};
+/**
+ * Try to fetch symbol data from multiple candidate paths
+ * Returns the data and updates attemptedPaths for error reporting
+ */
+const tryFetchSymbol = async (client, candidatePaths, attemptedPaths) => {
+    for (const candidatePath of candidatePaths) {
+        attemptedPaths.push(candidatePath);
+        try {
+            // eslint-disable-next-line no-await-in-loop -- Intentional sequential fetching to try paths in order
+            return await client.getSymbol(candidatePath);
+        }
+        catch {
+            // Continue to next candidate
+        }
+    }
+    return undefined;
+};
 const formatIdentifiers = (identifiers, references, client) => {
     const content = [];
     for (const id of identifiers.slice(0, 5)) {
@@ -41,30 +69,22 @@ export const buildGetDocumentationHandler = (context) => {
         const framework = await loadActiveFrameworkData(context);
         const identifierParts = activeTechnology.identifier.split('/');
         const frameworkName = identifierParts.at(-1);
-        // Try path as-is first, fallback to framework-prefixed path
-        let targetPath = path;
-        let data;
-        try {
-            // First attempt: try the path exactly as provided
-            data = await client.getSymbol(targetPath);
+        // Build candidate paths to try in order
+        const attemptedPaths = [];
+        const candidatePaths = [path];
+        if (!path.startsWith('documentation/')) {
+            candidatePaths.push(`documentation/${frameworkName}/${path}`);
         }
-        catch (error) {
-            // If that fails and path doesn't already start with documentation/,
-            // try prefixing with framework path
-            if (path.startsWith('documentation/')) {
-                // Path already starts with documentation/, so just rethrow original error
-                throw error;
-            }
-            else {
-                try {
-                    targetPath = `documentation/${frameworkName}/${path}`;
-                    data = await client.getSymbol(targetPath);
-                }
-                catch {
-                    // If both attempts fail, throw the original error with helpful context
-                    throw new McpError(ErrorCode.InvalidRequest, `Failed to load documentation for both "${path}" and "${targetPath}": ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
+        // Add BundleResources path as fallback
+        const symbolName = path.startsWith('documentation/') ? (path.split('/').pop() ?? '') : path;
+        const bundlePath = resolveBundleResourcesPath(symbolName);
+        if (bundlePath) {
+            candidatePaths.push(bundlePath);
+        }
+        // Try each candidate path
+        const data = await tryFetchSymbol(client, candidatePaths, attemptedPaths);
+        if (!data) {
+            throw new McpError(ErrorCode.InvalidRequest, `Documentation not found. Tried: ${attemptedPaths.join(', ')}. Check the symbol name spelling or use search_symbols to find the correct path.`);
         }
         const title = data.metadata?.title || 'Symbol';
         const kind = data.metadata?.symbolKind || 'Unknown';

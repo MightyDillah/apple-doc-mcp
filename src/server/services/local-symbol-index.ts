@@ -5,8 +5,8 @@ import {
 	type AppleDevDocsClient, type SymbolData, type ReferenceData, type FrameworkData,
 } from '../../apple-client.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const currentFilename = fileURLToPath(import.meta.url);
+const currentDirname = dirname(currentFilename);
 
 export type LocalSymbolIndexEntry = {
 	id: string;
@@ -19,6 +19,11 @@ export type LocalSymbolIndexEntry = {
 	filePath: string;
 };
 
+export type ScoredSearchResult = {
+	entry: LocalSymbolIndexEntry;
+	score: number;
+};
+
 export class LocalSymbolIndex {
 	private readonly symbols = new Map<string, LocalSymbolIndexEntry>();
 	private readonly cacheDir: string;
@@ -26,10 +31,11 @@ export class LocalSymbolIndex {
 	private indexBuilt = false;
 
 	constructor(private readonly client: AppleDevDocsClient, technologyIdentifier?: string) {
-		this.cacheDir = join(__dirname, '../../../.cache');
+		this.cacheDir = join(currentDirname, '../../../.cache');
 		this.technologyIdentifier = technologyIdentifier;
 	}
 
+	// Public methods first
 	async buildIndexFromCache(): Promise<void> {
 		if (this.indexBuilt) {
 			console.error('📚 Index already built, skipping rebuild');
@@ -38,14 +44,12 @@ export class LocalSymbolIndex {
 
 		console.error('📚 Building local symbol index from cached files...');
 
-		// Validate cache directory exists
 		if (!existsSync(this.cacheDir)) {
 			console.warn(`Cache directory does not exist: ${this.cacheDir}`);
 			this.indexBuilt = true;
 			return;
 		}
 
-		// Read all JSON files in the docs directory
 		const files = readdirSync(this.cacheDir).filter(file => file.endsWith('.json'));
 		console.error(`📁 Found ${files.length} cached files`);
 
@@ -58,14 +62,12 @@ export class LocalSymbolIndex {
 				const rawData = readFileSync(filePath, 'utf8');
 				const data = JSON.parse(rawData) as SymbolData | FrameworkData;
 
-				// Validate data structure
 				if (!this.isValidCacheData(data)) {
 					console.warn(`Invalid cache data in ${file}, skipping`);
 					errorCount++;
 					continue;
 				}
 
-				// Process the data
 				this.processSymbolData(data, filePath);
 				processedCount++;
 			} catch (error) {
@@ -79,45 +81,20 @@ export class LocalSymbolIndex {
 	}
 
 	search(query: string, maxResults = 20): LocalSymbolIndexEntry[] {
-		const results: Array<{entry: LocalSymbolIndexEntry; score: number}> = [];
-		const queryTokens = this.tokenize(query);
+		return this.searchWithScores(query, maxResults).map(r => r.entry);
+	}
 
-		// Check if query contains wildcards
+	searchWithScores(query: string, maxResults = 20): ScoredSearchResult[] {
+		const results: ScoredSearchResult[] = [];
+		const queryLower = query.toLowerCase();
+		const queryTokens = this.tokenize(query);
 		const hasWildcards = query.includes('*') || query.includes('?');
 
-		for (const [id, entry] of this.symbols.entries()) {
-			let score = 0;
-
-			if (hasWildcards) {
-				// Wildcard matching
-				const pattern = query
-					.replaceAll('*', '.*')
-					.replaceAll('?', '.')
-					.toLowerCase();
-
-				const regex = new RegExp(`^${pattern}$`);
-
-				if (regex.test(entry.title.toLowerCase())
-					|| regex.test(entry.path.toLowerCase())
-					|| entry.tokens.some(token => regex.test(token))) {
-					score = 100; // High score for wildcard matches
-				}
-			} else {
-				// Regular token-based matching
-				for (const queryToken of queryTokens) {
-					if (entry.title.toLowerCase().includes(queryToken.toLowerCase())) {
-						score += 50;
-					}
-
-					if (entry.tokens.includes(queryToken)) {
-						score += 30;
-					}
-
-					if (entry.abstract.toLowerCase().includes(queryToken.toLowerCase())) {
-						score += 10;
-					}
-				}
-			}
+		for (const entry of this.symbols.values()) {
+			const titleLower = entry.title.toLowerCase();
+			const score = hasWildcards
+				? this.calculateWildcardScore(query, entry, titleLower)
+				: this.calculateTieredScore(entry, queryLower, queryTokens);
 
 			if (score > 0) {
 				results.push({entry, score});
@@ -126,17 +103,116 @@ export class LocalSymbolIndex {
 
 		return results
 			.sort((a, b) => b.score - a.score)
-			.slice(0, maxResults)
-			.map(result => result.entry);
+			.slice(0, maxResults);
 	}
 
 	getSymbolCount(): number {
 		return this.symbols.size;
 	}
 
+	isBuilt(): boolean {
+		return this.indexBuilt;
+	}
+
 	clear(): void {
 		this.symbols.clear();
 		this.indexBuilt = false;
+	}
+
+	rebuildIndex(): void {
+		this.indexBuilt = false;
+		this.symbols.clear();
+	}
+
+	addSymbolFromData(data: SymbolData | FrameworkData, filePath: string): boolean {
+		if (!this.isValidCacheData(data)) {
+			return false;
+		}
+
+		const previousCount = this.symbols.size;
+		this.processSymbolData(data, filePath);
+		return this.symbols.size > previousCount;
+	}
+
+	// Private methods after public methods
+	private calculateWildcardScore(query: string, entry: LocalSymbolIndexEntry, titleLower: string): number {
+		const pattern = query
+			.replaceAll('*', '.*')
+			.replaceAll('?', '.')
+			.toLowerCase();
+
+		try {
+			const regex = new RegExp(`^${pattern}$`);
+
+			if (regex.test(titleLower)) {
+				return 500;
+			}
+
+			if (regex.test(entry.path.toLowerCase())) {
+				return 300;
+			}
+
+			if (entry.tokens.some(token => regex.test(token))) {
+				return 100;
+			}
+		} catch {
+			// Invalid regex pattern, skip
+		}
+
+		return 0;
+	}
+
+	private calculateTieredScore(entry: LocalSymbolIndexEntry, queryLower: string, queryTokens: string[]): number {
+		const titleLower = entry.title.toLowerCase();
+		const pathLower = entry.path.toLowerCase();
+		const abstractLower = entry.abstract.toLowerCase();
+
+		if (titleLower === queryLower) {
+			return 1000;
+		}
+
+		if (titleLower.startsWith(queryLower)) {
+			return 500;
+		}
+
+		if (this.matchesAtWordBoundary(entry.title, queryLower)) {
+			return 200;
+		}
+
+		if (titleLower.includes(queryLower)) {
+			return 100;
+		}
+
+		let tokenScore = 0;
+
+		for (const queryToken of queryTokens) {
+			const queryTokenLower = queryToken.toLowerCase();
+
+			if (entry.tokens.some(t => t.toLowerCase() === queryTokenLower)) {
+				tokenScore += 30;
+			} else if (titleLower.includes(queryTokenLower)) {
+				tokenScore += 15;
+			} else if (pathLower.includes(queryTokenLower)) {
+				tokenScore += 10;
+			} else if (abstractLower.includes(queryTokenLower)) {
+				tokenScore += 5;
+			}
+		}
+
+		return tokenScore;
+	}
+
+	private matchesAtWordBoundary(title: string, queryLower: string): boolean {
+		const parts = title.split(/(?=[A-Z])/);
+
+		for (let i = 0; i < parts.length; i++) {
+			const suffix = parts.slice(i).join('').toLowerCase();
+			if (suffix.startsWith(queryLower)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private isValidCacheData(data: unknown): data is SymbolData | FrameworkData {
@@ -146,12 +222,10 @@ export class LocalSymbolIndex {
 
 		const object = data as Record<string, unknown>;
 
-		// Check for required properties
 		if (!('abstract' in object) || !('metadata' in object)) {
 			return false;
 		}
 
-		// Validate metadata structure
 		const {metadata} = object;
 		if (!metadata || typeof metadata !== 'object') {
 			return false;
@@ -166,18 +240,12 @@ export class LocalSymbolIndex {
 		}
 
 		const tokens = new Set<string>();
-
-		// Split on common delimiters
 		const basicTokens = text.split(/[\s/._-]+/).filter(Boolean);
 
 		for (const token of basicTokens) {
-			// Add lowercase version
 			tokens.add(token.toLowerCase());
-
-			// Add original case version for exact matches
 			tokens.add(token);
 
-			// Handle camelCase/PascalCase (e.g., GridItem -> grid, item, griditem)
 			const camelParts = token.split(/(?=[A-Z])/).filter(Boolean);
 			if (camelParts.length > 1) {
 				for (const part of camelParts) {
@@ -185,7 +253,6 @@ export class LocalSymbolIndex {
 					tokens.add(part);
 				}
 
-				// Add concatenated lowercase version
 				tokens.add(camelParts.join('').toLowerCase());
 			}
 		}
@@ -193,23 +260,56 @@ export class LocalSymbolIndex {
 		return [...tokens];
 	}
 
+	/**
+	 * Generate a unique key for deduplication based on title
+	 * This ensures same-named symbols are deduplicated regardless of source
+	 */
+	private generateSymbolKey(title: string): string {
+		return title.toLowerCase();
+	}
+
+	/**
+	 * Add or update a symbol entry
+	 * Priority: 1) entry with path, 2) entry with longer abstract
+	 */
+	private upsertSymbol(entry: LocalSymbolIndexEntry): void {
+		const key = this.generateSymbolKey(entry.title);
+		const existing = this.symbols.get(key);
+
+		if (!existing) {
+			this.symbols.set(key, entry);
+			return;
+		}
+
+		// Prefer entry with path over entry without path
+		if (!existing.path && entry.path) {
+			this.symbols.set(key, entry);
+			return;
+		}
+
+		// If both have paths, prefer entry with more detailed abstract
+		if (existing.path && entry.path && entry.abstract.length > existing.abstract.length) {
+			this.symbols.set(key, entry);
+		}
+
+		// If existing has path but new doesn't, keep existing (do nothing)
+	}
+
 	private processSymbolData(data: SymbolData | FrameworkData, filePath: string): void {
-		const title = data.metadata?.title || 'Unknown';
+		const title = data.metadata?.title ?? 'Unknown';
 		const path = (data.metadata && 'url' in data.metadata && typeof data.metadata.url === 'string') ? data.metadata.url : '';
 		const kind = (data.metadata && 'symbolKind' in data.metadata && typeof data.metadata.symbolKind === 'string') ? data.metadata.symbolKind : 'framework';
 		const abstract = this.client.extractText(data.abstract);
-		const platforms = data.metadata?.platforms?.map(p => p.name).filter(Boolean) || [];
+		const platforms = data.metadata?.platforms?.map(p => p.name).filter(Boolean) ?? [];
 
-		// Filter by technology if specified
 		if (this.technologyIdentifier && path) {
 			const technologyPath = this.technologyIdentifier.toLowerCase();
 			const symbolPath = path.toLowerCase();
 			if (!symbolPath.includes(technologyPath)) {
-				return; // Skip symbols not from the selected technology
+				return;
 			}
 		}
 
-		// Create comprehensive tokens
 		const tokens = this.createTokens(title, abstract, path, platforms);
 
 		const entry: LocalSymbolIndexEntry = {
@@ -223,9 +323,7 @@ export class LocalSymbolIndex {
 			filePath,
 		};
 
-		this.symbols.set(path || title, entry);
-
-		// Process references recursively
+		this.upsertSymbol(entry);
 		this.processReferences(data.references, filePath);
 	}
 
@@ -244,7 +342,6 @@ export class LocalSymbolIndex {
 			tokens.add(token);
 		}
 
-		// Add platform tokens
 		for (const platform of platforms) {
 			for (const token of this.tokenize(platform)) {
 				tokens.add(token);
@@ -259,28 +356,28 @@ export class LocalSymbolIndex {
 			return;
 		}
 
-		for (const [refId, ref] of Object.entries(references)) {
+		for (const ref of Object.values(references)) {
 			if (ref.kind === 'symbol' && ref.title) {
-				// Filter references by technology if specified
-				if (this.technologyIdentifier && ref.url) {
+				const refPath = ref.url ?? '';
+
+				if (this.technologyIdentifier && refPath) {
 					const technologyPath = this.technologyIdentifier.toLowerCase();
-					const refPath = ref.url.toLowerCase();
-					if (!refPath.includes(technologyPath)) {
-						continue; // Skip references not from the selected technology
+					if (!refPath.toLowerCase().includes(technologyPath)) {
+						continue;
 					}
 				}
 
 				const refTokens = this.createTokens(
 					ref.title,
 					this.client.extractText(ref.abstract ?? []),
-					ref.url || '',
+					refPath,
 					ref.platforms?.map(p => p.name).filter(Boolean) ?? [],
 				);
 
 				const refEntry: LocalSymbolIndexEntry = {
-					id: refId,
+					id: refPath || ref.title,
 					title: ref.title,
-					path: ref.url || '',
+					path: refPath,
 					kind: ref.kind,
 					abstract: this.client.extractText(ref.abstract ?? []),
 					platforms: ref.platforms?.map(p => p.name).filter(Boolean) ?? [],
@@ -288,7 +385,8 @@ export class LocalSymbolIndex {
 					filePath,
 				};
 
-				this.symbols.set(refId, refEntry);
+				// Use same key generation for deduplication
+				this.upsertSymbol(refEntry);
 			}
 		}
 	}

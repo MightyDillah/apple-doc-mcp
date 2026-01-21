@@ -1,5 +1,93 @@
 import { header, bold } from '../markdown.js';
 import { buildNoTechnologyMessage } from './no-technology.js';
+// Absolute minimum score - anything below this is definitely noise
+const absoluteMinScore = 5;
+// Minimum results to show before relaxing threshold
+const minResultsBeforeRelaxing = 5;
+/**
+ * Calculate dynamic relevance threshold based on search results
+ * Uses relative scoring: threshold is a percentage of the top score
+ * This ensures we filter noise while still returning relevant results
+ */
+const calculateDynamicThreshold = (scoredResults, requestedMax) => {
+    if (scoredResults.length === 0) {
+        return 0;
+    }
+    const topScore = scoredResults[0].score;
+    // Base threshold: 5% of top score, but at least absoluteMinScore
+    const baseThreshold = Math.max(absoluteMinScore, topScore * 0.05);
+    // Count how many results are above base threshold
+    const aboveThreshold = scoredResults.filter(r => r.score >= baseThreshold);
+    // If we have very few results above threshold, relax it
+    if (aboveThreshold.length < Math.min(minResultsBeforeRelaxing, requestedMax)) {
+        // Relaxed threshold: 1% of top score, but at least absoluteMinScore
+        return Math.max(absoluteMinScore, topScore * 0.01);
+    }
+    return baseThreshold;
+};
+/**
+ * Extract framework API path name from technology identifier
+ * e.g., "doc://com.apple.documentation/documentation/DeviceManagement" -> "DeviceManagement"
+ */
+const extractFrameworkName = (identifier) => {
+    const parts = identifier.split('/');
+    return parts.at(-1) ?? '';
+};
+const buildIndexStatusMessage = (indexerStatus, symbolCount) => {
+    const lines = [];
+    if (indexerStatus?.isRunning) {
+        lines.push(`🔄 **Indexing in progress:** ${indexerStatus.downloadedCount}/${indexerStatus.totalQueued} symbols indexed`, 'Search results will improve as more symbols are indexed.', '');
+    }
+    else if (symbolCount < 50) {
+        lines.push('⚠️ **Limited Index:** Only basic symbols are available.', 'Try selecting the technology again to start background indexing.', '');
+    }
+    else {
+        lines.push(`✅ **Symbol Index:** ${symbolCount} symbols available.`, '');
+    }
+    return lines;
+};
+/**
+ * Check if query looks like an Info.plist key (NS*, UI*, CF*, etc.)
+ */
+const looksLikeInfoPlistKey = (query) => /^(NS|UI|CF|LS|WK|IN|MK|CK|CN|HK|PK|SK|GK|MT|AV|CA|CI|CL|CT|EK|FM|GC|GL|IT|MA|MC|ML|MP|NK|NW|OS|PH|PS|QC|RP|SC|SF|SL|SM|SP|SS|ST|TK|TV|UN|VS|WC|WT)[A-Z]/.test(query);
+const buildNoResultsMessage = (query, technologyTitle, symbolCount) => {
+    const lines = [];
+    // Check if this looks like a specific symbol name
+    const isSpecificSymbol = /^[A-Z][a-zA-Z\d]*$/.test(query)
+        || /^[A-Z][a-zA-Z\d]*\.[A-Z][a-zA-Z\d]*$/.test(query)
+        || looksLikeInfoPlistKey(query);
+    lines.push(`No relevant symbols found for "${query}" within ${technologyTitle}.`, '');
+    if (looksLikeInfoPlistKey(query)) {
+        lines.push('**💡 This looks like an Info.plist key.**', 'Try using `get_documentation` for direct access:', '', '```', `get_documentation { "path": "${query}" }`, '```', '', 'Or switch to Bundle Resources technology:', '```', 'choose_technology { "name": "Bundle Resources" }', '```', '');
+    }
+    else if (isSpecificSymbol) {
+        lines.push('**💡 Suggestion:** This looks like a specific symbol name.', 'Try using `get_documentation` instead for direct access:', '', '```', `get_documentation { "path": "${query}" }`, '```', '');
+    }
+    lines.push('**Search Tips:**', '• Try wildcards: `Grid*` or `*Item`', '• Use broader keywords: "grid" instead of "griditem"', '• Check spelling and try synonyms', '• For Info.plist keys, try using `discover_technologies { "query": "bundle" }`', '');
+    if (symbolCount < 50) {
+        lines.push('**Note:** Symbol index is still building.', 'Try searching again shortly for more comprehensive results.', '');
+    }
+    return lines;
+};
+const filterResults = (results, platform, symbolType, maxResults) => {
+    let filtered = results;
+    if (platform) {
+        const platformLower = platform.toLowerCase();
+        filtered = filtered.filter(result => result.platforms.some(p => p.toLowerCase().includes(platformLower)));
+    }
+    if (symbolType) {
+        const typeLower = symbolType.toLowerCase();
+        filtered = filtered.filter(result => result.kind.toLowerCase().includes(typeLower));
+    }
+    return filtered.slice(0, maxResults);
+};
+const buildLocalIndex = async (techLocalIndex) => {
+    if (techLocalIndex.getSymbolCount() === 0) {
+        console.error('📚 Building symbol index from cache...');
+        await techLocalIndex.buildIndexFromCache();
+        console.error(`✅ Index built with ${techLocalIndex.getSymbolCount()} symbols`);
+    }
+};
 export const buildSearchSymbolsHandler = (context) => {
     const { client, state } = context;
     const noTechnology = buildNoTechnologyMessage(context);
@@ -9,26 +97,24 @@ export const buildSearchSymbolsHandler = (context) => {
             return noTechnology();
         }
         const { query, maxResults = 20, platform, symbolType } = args;
-        // Get or create technology-specific local index from state
         const techLocalIndex = state.getLocalSymbolIndex(client);
         // Build local index from cached files if not already built
-        if (techLocalIndex.getSymbolCount() === 0) {
-            try {
-                console.error('📚 Building symbol index from cache...');
-                await techLocalIndex.buildIndexFromCache();
-                console.error(`✅ Index built with ${techLocalIndex.getSymbolCount()} symbols`);
-            }
-            catch (error) {
-                console.warn('Failed to build local symbol index:', error instanceof Error ? error.message : String(error));
-            }
+        try {
+            await buildLocalIndex(techLocalIndex);
         }
-        // Comprehensive download disabled - it was broken and blocking
-        // If local index is empty/small, use direct framework search as fallback
-        let symbolResults = techLocalIndex.search(query, maxResults * 2);
+        catch (error) {
+            console.warn('Failed to build local symbol index:', error instanceof Error ? error.message : String(error));
+        }
+        // Search with scores and apply dynamic threshold
+        const allScoredResults = techLocalIndex.searchWithScores(query, maxResults * 2);
+        const dynamicThreshold = calculateDynamicThreshold(allScoredResults, maxResults);
+        const scoredResults = allScoredResults.filter(r => r.score >= dynamicThreshold);
+        let symbolResults = scoredResults.map(r => r.entry);
+        // Fallback to framework references if index is small and no results
         if (symbolResults.length === 0 && techLocalIndex.getSymbolCount() < 50) {
-            // Fallback: search framework.references directly (fast, no download needed)
             console.error('📋 Using framework references for search...');
-            const frameworkResults = await client.searchFramework(activeTechnology.title, query, { maxResults: maxResults * 2, platform, symbolType });
+            const frameworkName = extractFrameworkName(activeTechnology.identifier);
+            const frameworkResults = await client.searchFramework(frameworkName, query, { maxResults: maxResults * 2, platform, symbolType });
             symbolResults = frameworkResults.map(r => ({
                 id: r.path ?? r.title,
                 title: r.title,
@@ -40,26 +126,14 @@ export const buildSearchSymbolsHandler = (context) => {
                 filePath: '',
             }));
         }
-        // Apply filters
-        let filteredResults = symbolResults;
-        if (platform) {
-            const platformLower = platform.toLowerCase();
-            filteredResults = filteredResults.filter(result => result.platforms.some(p => p.toLowerCase().includes(platformLower)));
-        }
-        if (symbolType) {
-            const typeLower = symbolType.toLowerCase();
-            filteredResults = filteredResults.filter(result => result.kind.toLowerCase().includes(typeLower));
-        }
-        filteredResults = filteredResults.slice(0, maxResults);
-        // Validate result relevance
-        const technologyIdentifier = activeTechnology.identifier.replace('doc://com.apple.documentation/', '').replace(/^documentation\//, '');
-        const isRelevantResult = (result) => {
-            const resultPath = result.path.toLowerCase();
-            const technologyPath = technologyIdentifier.toLowerCase();
-            return resultPath.includes(technologyPath);
-        };
-        const relevantResults = filteredResults.filter(result => isRelevantResult(result));
-        const hasIrrelevantResults = relevantResults.length < filteredResults.length;
+        const filteredResults = filterResults(symbolResults, platform, symbolType, maxResults);
+        // Check for irrelevant results
+        const technologyPath = activeTechnology.identifier
+            .replace('doc://com.apple.documentation/', '')
+            .replace(/^documentation\//, '')
+            .toLowerCase();
+        const hasIrrelevantResults = filteredResults.some(r => !r.path.toLowerCase().includes(technologyPath));
+        // Build output
         const lines = [
             header(1, `🔍 Search Results for "${query}"`),
             '',
@@ -67,17 +141,14 @@ export const buildSearchSymbolsHandler = (context) => {
             bold('Matches', filteredResults.length.toString()),
             bold('Total Symbols Indexed', techLocalIndex.getSymbolCount().toString()),
             '',
+            ...buildIndexStatusMessage(state.getIndexerStatus(), techLocalIndex.getSymbolCount()),
         ];
-        // Add status information
-        if (techLocalIndex.getSymbolCount() < 50) {
-            lines.push('⚠️ **Limited Results:** Only basic symbols are indexed.', 'For comprehensive results, additional symbols are being downloaded in the background.', '');
-        }
-        else {
-            lines.push('✅ **Comprehensive Index:** Full symbol database is available.', '');
-        }
         lines.push(header(2, 'Symbols'), '');
-        // Show warning if results seem irrelevant
-        if (hasIrrelevantResults && filteredResults.length > 0) {
+        // Add Info.plist key suggestion if query looks like one
+        if (looksLikeInfoPlistKey(query) && filteredResults.length > 0) {
+            lines.push('**💡 This looks like an Info.plist key.**', 'For direct documentation, try:', `\`get_documentation { "path": "${query}" }\``, '');
+        }
+        else if (hasIrrelevantResults && filteredResults.length > 0) {
             lines.push('⚠️ **Note:** Some results may not be from the selected technology.', 'For specific symbol names, try using `get_documentation` instead.', '');
         }
         if (filteredResults.length > 0) {
@@ -87,13 +158,7 @@ export const buildSearchSymbolsHandler = (context) => {
             }
         }
         else {
-            // Check if this looks like a specific symbol name that should use direct documentation lookup
-            const isSpecificSymbol = /^[A-Z][a-zA-Z\d]*$/.test(query) || /^[A-Z][a-zA-Z\d]*\.[A-Z][a-zA-Z\d]*$/.test(query);
-            lines.push('No symbols matched those terms within this technology.', '', '**Search Tips:**', '• Try wildcards: `Grid*` or `*Item`', '• Use broader keywords: "grid" instead of "griditem"', '• Check spelling and try synonyms', '');
-            if (isSpecificSymbol) {
-                lines.push('**💡 Suggestion:** This looks like a specific symbol name.', 'Try using `get_documentation` instead for direct access:', '', '```', `get_documentation { "path": "${query}" }`, '```', '');
-            }
-            lines.push('**Note:** If this is your first search, symbols are being downloaded in the background.', 'Try searching again in a few moments for more comprehensive results.', '');
+            lines.push(...buildNoResultsMessage(query, activeTechnology.title, techLocalIndex.getSymbolCount()));
         }
         return {
             content: [{ text: lines.join('\n'), type: 'text' }],
