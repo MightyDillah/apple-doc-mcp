@@ -7,11 +7,11 @@ if you find this MCP helpful, I'd really apperciate it if you clicked on the [‚ù
 
 ## üìã Changelog
 
-New symbol search! Thank you to @christopherbattlefrontlegal and @Indading for sponsoring! you guys rock. Please contribute what you can, my aim is to get $100 a month so i can at least fund a claude code account which I will dedicate only to this project.
+Thank you to the Github team for gifting me a year subscription to Copilot Pro+ you guys rock! and thank you @billibala, @theoddbrick, @christopherbattlefrontlegal for sponsoring! you guys are amazing.
 
 - Full release history lives in [CHANGELOG.md](CHANGELOG.md).
 
-- 1.9.5
+- 1.9.6
   - MAJOR FIX: Simplified `search_symbols` to be more predictable for AI agents
   - Added exact symbol resolution inside `search_symbols` for queries like `GridItem`, `View`, and `ButtonStyle`
   - Changed `search_symbols` to return symbol-first results with articles and guides separated into their own section
