@@ -1,8 +1,11 @@
-import {readFileSync, existsSync, readdirSync} from 'node:fs';
-import {join, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
-	type AppleDevDocsClient, type SymbolData, type ReferenceData, type FrameworkData,
+	type AppleDevDocsClient,
+	type SymbolData,
+	type ReferenceData,
+	type FrameworkData,
 } from '../../apple-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,7 +28,10 @@ export class LocalSymbolIndex {
 	private readonly technologyIdentifier?: string;
 	private indexBuilt = false;
 
-	constructor(private readonly client: AppleDevDocsClient, technologyIdentifier?: string) {
+	constructor(
+		private readonly client: AppleDevDocsClient,
+		technologyIdentifier?: string,
+	) {
 		this.cacheDir = join(__dirname, '../../../.cache');
 		this.technologyIdentifier = technologyIdentifier;
 	}
@@ -46,7 +52,9 @@ export class LocalSymbolIndex {
 		}
 
 		// Read all JSON files in the docs directory
-		const files = readdirSync(this.cacheDir).filter(file => file.endsWith('.json'));
+		const files = readdirSync(this.cacheDir).filter((file) =>
+			file.endsWith('.json'),
+		);
 		console.error(`📁 Found ${files.length} cached files`);
 
 		let processedCount = 0;
@@ -69,23 +77,28 @@ export class LocalSymbolIndex {
 				this.processSymbolData(data, filePath);
 				processedCount++;
 			} catch (error) {
-				console.warn(`Failed to process ${file}:`, error instanceof Error ? error.message : String(error));
+				console.warn(
+					`Failed to process ${file}:`,
+					error instanceof Error ? error.message : String(error),
+				);
 				errorCount++;
 			}
 		}
 
 		this.indexBuilt = true;
-		console.error(`✅ Local symbol index built with ${this.symbols.size} symbols (${processedCount} files processed, ${errorCount} errors)`);
+		console.error(
+			`✅ Local symbol index built with ${this.symbols.size} symbols (${processedCount} files processed, ${errorCount} errors)`,
+		);
 	}
 
 	search(query: string, maxResults = 20): LocalSymbolIndexEntry[] {
-		const results: Array<{entry: LocalSymbolIndexEntry; score: number}> = [];
+		const results: Array<{ entry: LocalSymbolIndexEntry; score: number }> = [];
 		const queryTokens = this.tokenize(query);
 
 		// Check if query contains wildcards
 		const hasWildcards = query.includes('*') || query.includes('?');
 
-		for (const [id, entry] of this.symbols.entries()) {
+		for (const entry of this.symbols.values()) {
 			let score = 0;
 
 			if (hasWildcards) {
@@ -97,9 +110,11 @@ export class LocalSymbolIndex {
 
 				const regex = new RegExp(`^${pattern}$`);
 
-				if (regex.test(entry.title.toLowerCase())
-					|| regex.test(entry.path.toLowerCase())
-					|| entry.tokens.some(token => regex.test(token))) {
+				if (
+					regex.test(entry.title.toLowerCase()) ||
+					regex.test(entry.path.toLowerCase()) ||
+					entry.tokens.some((token) => regex.test(token))
+				) {
 					score = 100; // High score for wildcard matches
 				}
 			} else {
@@ -120,14 +135,14 @@ export class LocalSymbolIndex {
 			}
 
 			if (score > 0) {
-				results.push({entry, score});
+				results.push({ entry, score });
 			}
 		}
 
 		return results
 			.sort((a, b) => b.score - a.score)
 			.slice(0, maxResults)
-			.map(result => result.entry);
+			.map((result) => result.entry);
 	}
 
 	getSymbolCount(): number {
@@ -152,7 +167,7 @@ export class LocalSymbolIndex {
 		}
 
 		// Validate metadata structure
-		const {metadata} = object;
+		const { metadata } = object;
 		if (!metadata || typeof metadata !== 'object') {
 			return false;
 		}
@@ -193,12 +208,26 @@ export class LocalSymbolIndex {
 		return [...tokens];
 	}
 
-	private processSymbolData(data: SymbolData | FrameworkData, filePath: string): void {
+	private processSymbolData(
+		data: SymbolData | FrameworkData,
+		filePath: string,
+	): void {
 		const title = data.metadata?.title || 'Unknown';
-		const path = (data.metadata && 'url' in data.metadata && typeof data.metadata.url === 'string') ? data.metadata.url : '';
-		const kind = (data.metadata && 'symbolKind' in data.metadata && typeof data.metadata.symbolKind === 'string') ? data.metadata.symbolKind : 'framework';
+		const path =
+			data.metadata &&
+			'url' in data.metadata &&
+			typeof data.metadata.url === 'string'
+				? data.metadata.url
+				: '';
+		const kind =
+			data.metadata &&
+			'symbolKind' in data.metadata &&
+			typeof data.metadata.symbolKind === 'string'
+				? data.metadata.symbolKind
+				: 'framework';
 		const abstract = this.client.extractText(data.abstract);
-		const platforms = data.metadata?.platforms?.map(p => p.name).filter(Boolean) || [];
+		const platforms =
+			data.metadata?.platforms?.map((p) => p.name).filter(Boolean) || [];
 
 		// Filter by technology if specified
 		if (this.technologyIdentifier && path) {
@@ -229,7 +258,12 @@ export class LocalSymbolIndex {
 		this.processReferences(data.references, filePath);
 	}
 
-	private createTokens(title: string, abstract: string, path: string, platforms: string[]): string[] {
+	private createTokens(
+		title: string,
+		abstract: string,
+		path: string,
+		platforms: string[],
+	): string[] {
 		const tokens = new Set<string>();
 
 		for (const token of this.tokenize(title)) {
@@ -254,7 +288,10 @@ export class LocalSymbolIndex {
 		return [...tokens];
 	}
 
-	private processReferences(references: Record<string, ReferenceData> | undefined, filePath: string): void {
+	private processReferences(
+		references: Record<string, ReferenceData> | undefined,
+		filePath: string,
+	): void {
 		if (!references) {
 			return;
 		}
@@ -274,7 +311,7 @@ export class LocalSymbolIndex {
 					ref.title,
 					this.client.extractText(ref.abstract ?? []),
 					ref.url || '',
-					ref.platforms?.map(p => p.name).filter(Boolean) ?? [],
+					ref.platforms?.map((p) => p.name).filter(Boolean) ?? [],
 				);
 
 				const refEntry: LocalSymbolIndexEntry = {
@@ -283,7 +320,7 @@ export class LocalSymbolIndex {
 					path: ref.url || '',
 					kind: ref.kind,
 					abstract: this.client.extractText(ref.abstract ?? []),
-					platforms: ref.platforms?.map(p => p.name).filter(Boolean) ?? [],
+					platforms: ref.platforms?.map((p) => p.name).filter(Boolean) ?? [],
 					tokens: refTokens,
 					filePath,
 				};

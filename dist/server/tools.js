@@ -1,4 +1,4 @@
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { buildDiscoverHandler } from './handlers/discover.js';
 import { buildChooseTechnologyHandler } from './handlers/choose-technology.js';
 import { buildCurrentTechnologyHandler } from './handlers/current-technology.js';
@@ -28,7 +28,7 @@ export const registerTools = (server, context) => {
                     },
                 },
             },
-            handler: buildDiscoverHandler(context),
+            handler: (args) => buildDiscoverHandler(context)(args),
         },
         {
             name: 'choose_technology',
@@ -47,7 +47,7 @@ export const registerTools = (server, context) => {
                     },
                 },
             },
-            handler: buildChooseTechnologyHandler(context),
+            handler: (args) => buildChooseTechnologyHandler(context)(args),
         },
         {
             name: 'current_technology',
@@ -57,12 +57,12 @@ export const registerTools = (server, context) => {
                 required: [],
                 properties: {},
             },
-            handler: buildCurrentTechnologyHandler(context),
+            handler: () => buildCurrentTechnologyHandler(context)(),
         },
         {
             name: 'get_documentation',
-            description: 'Get detailed documentation for specific symbols within the selected technology. '
-                + 'Use this for known symbol names (e.g., "View", "Button", "GridItem"). Accepts relative symbol names.',
+            description: 'Get detailed documentation for specific symbols within the selected technology. ' +
+                'Use this for known symbol names or paths (e.g., "View", "ButtonStyle", "documentation/SwiftUI/GridItem").',
             inputSchema: {
                 type: 'object',
                 required: ['path'],
@@ -73,13 +73,13 @@ export const registerTools = (server, context) => {
                     },
                 },
             },
-            handler: buildGetDocumentationHandler(context),
+            handler: (args) => buildGetDocumentationHandler(context)(args),
         },
         {
             name: 'search_symbols',
-            description: 'Search and discover symbols within the currently selected technology. '
-                + 'Use this for exploration and finding symbols by keywords. Supports wildcards (* and ?). '
-                + 'For specific known symbols, use get_documentation instead.',
+            description: 'Search the selected technology with symbol-first results. ' +
+                'Exact symbol names are resolved directly when possible, wildcard queries support * and ?, ' +
+                'and broader keyword searches return symbols first with articles and guides listed separately.',
             inputSchema: {
                 type: 'object',
                 required: ['query'],
@@ -102,7 +102,7 @@ export const registerTools = (server, context) => {
                     },
                 },
             },
-            handler: buildSearchSymbolsHandler(context),
+            handler: (args) => buildSearchSymbolsHandler(context)(args),
         },
         {
             name: 'get_version',
@@ -112,14 +112,18 @@ export const registerTools = (server, context) => {
                 required: [],
                 properties: {},
             },
-            handler: buildVersionHandler(),
+            handler: () => buildVersionHandler()(),
         },
     ];
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
-        tools: toolDefinitions.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+        tools: toolDefinitions.map(({ name, description, inputSchema }) => ({
+            name,
+            description,
+            inputSchema,
+        })),
     }));
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
-        const tool = toolDefinitions.find(entry => entry.name === request.params.name);
+        const tool = toolDefinitions.find((entry) => entry.name === request.params.name);
         if (!tool) {
             throw new Error(`Unknown tool: ${request.params.name}`);
         }

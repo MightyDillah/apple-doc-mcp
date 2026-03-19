@@ -1,11 +1,15 @@
-import {ErrorCode, McpError} from '@modelcontextprotocol/sdk/types.js';
-import type {ServerContext, ToolResponse} from '../context.js';
-import type {SymbolData, ReferenceData} from '../../apple-client.js';
-import {bold, header, trimWithEllipsis} from '../markdown.js';
-import {loadActiveFrameworkData} from '../services/framework-loader.js';
-import {buildNoTechnologyMessage} from './no-technology.js';
+import type { ServerContext, ToolResponse } from '../context.js';
+import type { SymbolData, ReferenceData } from '../../apple-client.js';
+import { bold, header, trimWithEllipsis } from '../markdown.js';
+import { loadActiveFrameworkData } from '../services/framework-loader.js';
+import { resolveSymbol } from '../services/symbol-resolution.js';
+import { buildNoTechnologyMessage } from './no-technology.js';
 
-const formatIdentifiers = (identifiers: string[], references: Record<string, ReferenceData> | undefined, client: ServerContext['client']): string[] => {
+const formatIdentifiers = (
+	identifiers: string[],
+	references: Record<string, ReferenceData> | undefined,
+	client: ServerContext['client'],
+): string[] => {
 	const content: string[] = [];
 
 	for (const id of identifiers.slice(0, 5)) {
@@ -23,7 +27,10 @@ const formatIdentifiers = (identifiers: string[], references: Record<string, Ref
 	return content;
 };
 
-const formatTopicSections = (data: SymbolData, client: ServerContext['client']): string[] => {
+const formatTopicSections = (
+	data: SymbolData,
+	client: ServerContext['client'],
+): string[] => {
 	const content: string[] = [];
 
 	if (data.topicSections?.length) {
@@ -31,7 +38,9 @@ const formatTopicSections = (data: SymbolData, client: ServerContext['client']):
 		for (const section of data.topicSections) {
 			content.push(`### ${section.title}`);
 			if (section.identifiers?.length) {
-				content.push(...formatIdentifiers(section.identifiers, data.references, client));
+				content.push(
+					...formatIdentifiers(section.identifiers, data.references, client),
+				);
 			}
 
 			content.push('');
@@ -42,49 +51,24 @@ const formatTopicSections = (data: SymbolData, client: ServerContext['client']):
 };
 
 export const buildGetDocumentationHandler = (context: ServerContext) => {
-	const {client, state} = context;
+	const { client, state } = context;
 	const noTechnology = buildNoTechnologyMessage(context);
 
-	return async ({path}: {path: string}): Promise<ToolResponse> => {
+	return async ({ path }: { path: string }): Promise<ToolResponse> => {
 		const activeTechnology = state.getActiveTechnology();
 		if (!activeTechnology) {
 			return noTechnology();
 		}
 
 		const framework = await loadActiveFrameworkData(context);
-		const identifierParts = activeTechnology.identifier.split('/');
-		const frameworkName = identifierParts.at(-1);
-
-		// Try path as-is first, fallback to framework-prefixed path
-		let targetPath = path;
-		let data: SymbolData;
-
-		try {
-			// First attempt: try the path exactly as provided
-			data = await client.getSymbol(targetPath);
-		} catch (error) {
-			// If that fails and path doesn't already start with documentation/,
-			// try prefixing with framework path
-			if (path.startsWith('documentation/')) {
-				// Path already starts with documentation/, so just rethrow original error
-				throw error;
-			} else {
-				try {
-					targetPath = `documentation/${frameworkName}/${path}`;
-					data = await client.getSymbol(targetPath);
-				} catch {
-					// If both attempts fail, throw the original error with helpful context
-					throw new McpError(
-						ErrorCode.InvalidRequest,
-						`Failed to load documentation for both "${path}" and "${targetPath}": ${error instanceof Error ? error.message : String(error)}`,
-					);
-				}
-			}
-		}
+		const { data }: { data: SymbolData; targetPath: string } =
+			await resolveSymbol(client, activeTechnology, path);
 
 		const title = data.metadata?.title || 'Symbol';
 		const kind = data.metadata?.symbolKind || 'Unknown';
-		const platforms = client.formatPlatforms(data.metadata?.platforms ?? framework.metadata.platforms);
+		const platforms = client.formatPlatforms(
+			data.metadata?.platforms ?? framework.metadata.platforms,
+		);
 		const description = client.extractText(data.abstract);
 
 		const content: string[] = [
@@ -101,8 +85,7 @@ export const buildGetDocumentationHandler = (context: ServerContext) => {
 		content.push(...formatTopicSections(data, client));
 
 		return {
-			content: [{text: content.join('\n'), type: 'text'}],
+			content: [{ text: content.join('\n'), type: 'text' }],
 		};
 	};
 };
-

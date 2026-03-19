@@ -6,6 +6,9 @@ export declare const createServer: () => Server<{
         _meta?: {
             [x: string]: unknown;
             progressToken?: string | number | undefined;
+            "io.modelcontextprotocol/related-task"?: {
+                taskId: string;
+            } | undefined;
         } | undefined;
     } | undefined;
 }, {
@@ -14,11 +17,19 @@ export declare const createServer: () => Server<{
         [x: string]: unknown;
         _meta?: {
             [x: string]: unknown;
+            progressToken?: string | number | undefined;
+            "io.modelcontextprotocol/related-task"?: {
+                taskId: string;
+            } | undefined;
         } | undefined;
     } | undefined;
 }, {
     [x: string]: unknown;
     _meta?: {
         [x: string]: unknown;
+        progressToken?: string | number | undefined;
+        "io.modelcontextprotocol/related-task"?: {
+            taskId: string;
+        } | undefined;
     } | undefined;
 }>;

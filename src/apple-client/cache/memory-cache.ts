@@ -1,10 +1,11 @@
-import type {CacheEntry} from '../types/index.js';
+import type { CacheEntry } from '../types/index.js';
 
 export class MemoryCache {
-	private readonly cache = new Map<string, CacheEntry<any>>();
+	private readonly cache = new Map<string, CacheEntry<unknown>>();
 	private readonly cacheTimeout: number;
 
-	constructor(timeoutMs: number = 10 * 60 * 1000) { // Default 10 minutes
+	constructor(timeoutMs: number = 10 * 60 * 1000) {
+		// Default 10 minutes
 		this.cacheTimeout = timeoutMs;
 	}
 

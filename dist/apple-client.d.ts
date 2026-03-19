@@ -14,6 +14,12 @@ export declare class AppleDevDocsClient {
     getSymbol(path: string): Promise<SymbolData>;
     getTechnologies(): Promise<Record<string, Technology>>;
     refreshTechnologies(): Promise<Record<string, Technology>>;
+    private tokenizeSearchText;
+    private buildWildcardPattern;
+    private matchesSearchFilters;
+    private scoreWildcardReference;
+    private scoreKeywordReference;
+    private buildSearchResult;
     searchFramework(frameworkName: string, query: string, options?: {
         maxResults?: number;
         platform?: string;

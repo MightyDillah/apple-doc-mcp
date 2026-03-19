@@ -25,23 +25,23 @@ const ensureFramework = (technology) => {
 export const buildChooseTechnologyHandler = ({ client, state }) => async (args) => {
     const { name, identifier } = args;
     const technologies = await client.getTechnologies();
-    const candidates = Object.values(technologies).filter(tech => typeof tech?.title === 'string' && typeof tech?.identifier === 'string');
+    const candidates = Object.values(technologies).filter((tech) => typeof tech?.title === 'string' && typeof tech?.identifier === 'string');
     // Normalize search terms - case insensitive
     const normalizedName = name?.toLowerCase().trim();
     const normalizedIdentifier = identifier?.toLowerCase().trim();
     let chosen;
     // Try identifier first (most specific)
     if (normalizedIdentifier) {
-        chosen = candidates.find(tech => tech.identifier?.toLowerCase() === normalizedIdentifier);
+        chosen = candidates.find((tech) => tech.identifier?.toLowerCase() === normalizedIdentifier);
     }
     // Try exact name match (case-insensitive)
     if (!chosen && normalizedName) {
-        chosen = candidates.find(tech => tech.title?.toLowerCase() === normalizedName);
+        chosen = candidates.find((tech) => tech.title?.toLowerCase() === normalizedName);
     }
     // Try fuzzy match on name only if we have a name
     if (!chosen && normalizedName) {
         const scored = candidates
-            .map(tech => ({ tech, score: fuzzyScore(tech.title, name) }))
+            .map((tech) => ({ tech, score: fuzzyScore(tech.title, name) }))
             .sort((a, b) => a.score - b.score);
         // Only use fuzzy match if it's reasonably good (score < 3)
         if (scored[0] && scored[0].score < 3) {
@@ -51,9 +51,9 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
     if (!chosen) {
         const searchTerm = normalizedName ?? normalizedIdentifier ?? '';
         const suggestions = candidates
-            .filter(tech => tech.title?.toLowerCase().includes(searchTerm))
+            .filter((tech) => tech.title?.toLowerCase().includes(searchTerm))
             .slice(0, 5)
-            .map(tech => `• ${tech.title} — \`choose_technology "${tech.title}"\``);
+            .map((tech) => `• ${tech.title} — \`choose_technology "${tech.title}"\``);
         const lines = [
             header(1, '❌ Technology Not Found'),
             `Could not resolve "${name ?? identifier ?? 'unknown'}".`,
@@ -61,7 +61,9 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
             header(2, 'Suggestions'),
             ...(suggestions.length > 0
                 ? suggestions
-                : ['• Use `discover_technologies { "query": "keyword" }` to find candidates']),
+                : [
+                    '• Use `discover_technologies { "query": "keyword" }` to find candidates',
+                ]),
         ];
         return {
             content: [{ text: lines.join('\n'), type: 'text' }],
@@ -77,7 +79,7 @@ export const buildChooseTechnologyHandler = ({ client, state }) => async (args) 
         bold('Identifier', chosen.identifier ?? 'Unknown'),
         '',
         header(2, 'Next actions'),
-        '• `search_symbols { "query": "keyword" }` — fuzzy search within this framework',
+        '• `search_symbols { "query": "keyword" }` — symbol-first search within this framework',
         '• `get_documentation { "path": "SymbolName" }` — open a symbol page',
         '• `discover_technologies` — pick another framework',
     ];

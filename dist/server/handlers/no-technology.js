@@ -7,9 +7,9 @@ export const buildNoTechnologyMessage = ({ client, state }) => async () => {
         const technologies = await client.getTechnologies();
         // Filter out invalid entries and get only proper technologies
         availableTechnologies = Object.values(technologies)
-            .filter(tech => tech.title && tech.kind === 'symbol' && tech.role === 'collection')
+            .filter((tech) => tech.title && tech.kind === 'symbol' && tech.role === 'collection')
             .slice(0, 8)
-            .map(t => t.title);
+            .map((t) => t.title);
     }
     catch (error) {
         console.warn('Failed to get technologies for error message:', error);
@@ -34,8 +34,8 @@ export const buildNoTechnologyMessage = ({ client, state }) => async () => {
         '• `choose_technology { "name": "AppKit" }` — select AppKit',
         '',
         bold('Step 3:', 'Now you can search'),
-        '• `search_symbols { "query": "Button" }` — search for symbols',
-        '• `search_symbols { "query": "Grid*" }` — use wildcards',
+        '• `search_symbols { "query": "Button" }` — exact symbols resolve directly',
+        '• `search_symbols { "query": "Grid*" }` — search symbols with wildcards',
         '• `get_documentation { "path": "View" }` — get detailed docs',
         '',
         header(2, '📚 Available Technologies'),

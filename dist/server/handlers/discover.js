@@ -16,12 +16,12 @@ const formatPagination = (query, currentPage, totalPages) => {
 export const buildDiscoverHandler = ({ client, state }) => async (args) => {
     const { query, page = 1, pageSize = 25 } = args;
     const technologies = await client.getTechnologies();
-    const frameworks = Object.values(technologies).filter(tech => tech.kind === 'symbol' && tech.role === 'collection');
+    const frameworks = Object.values(technologies).filter((tech) => tech.kind === 'symbol' && tech.role === 'collection');
     let filtered = frameworks;
     if (query) {
         const lowerQuery = query.toLowerCase();
-        filtered = frameworks.filter(tech => tech.title.toLowerCase().includes(lowerQuery)
-            || client.extractText(tech.abstract).toLowerCase().includes(lowerQuery));
+        filtered = frameworks.filter((tech) => tech.title.toLowerCase().includes(lowerQuery) ||
+            client.extractText(tech.abstract).toLowerCase().includes(lowerQuery));
     }
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const currentPage = Math.min(Math.max(page, 1), totalPages);

@@ -1,8 +1,11 @@
-import {HttpClient} from './apple-client/http-client.js';
-import {FileCache} from './apple-client/cache/file-cache.js';
-import {extractText, formatPlatforms} from './apple-client/formatters.js';
+import { HttpClient } from './apple-client/http-client.js';
+import { FileCache } from './apple-client/cache/file-cache.js';
+import { extractText, formatPlatforms } from './apple-client/formatters.js';
 import type {
-	FrameworkData, SymbolData, Technology, SearchResult,
+	FrameworkData,
+	SymbolData,
+	Technology,
+	SearchResult,
 } from './apple-client/types/index.js';
 
 // Re-export types for backward compatibility
@@ -35,13 +38,17 @@ export class AppleDevDocsClient {
 			return cached;
 		}
 
-		const data = await this.httpClient.getDocumentation<FrameworkData>(`documentation/${frameworkName}`);
+		const data = await this.httpClient.getDocumentation<FrameworkData>(
+			`documentation/${frameworkName}`,
+		);
 		await this.fileCache.saveFramework(frameworkName, data);
 		return data;
 	}
 
 	async refreshFramework(frameworkName: string): Promise<FrameworkData> {
-		const data = await this.httpClient.getDocumentation<FrameworkData>(`documentation/${frameworkName}`);
+		const data = await this.httpClient.getDocumentation<FrameworkData>(
+			`documentation/${frameworkName}`,
+		);
 		await this.fileCache.saveFramework(frameworkName, data);
 		return data;
 	}
@@ -68,7 +75,9 @@ export class AppleDevDocsClient {
 		}
 
 		// If no cache, download from API and save
-		const response = await this.httpClient.getDocumentation<unknown>('documentation/technologies');
+		const response = await this.httpClient.getDocumentation<unknown>(
+			'documentation/technologies',
+		);
 
 		// The API returns a structure with 'references' containing the technologies
 		let technologies: Record<string, Technology> = {};
@@ -92,7 +101,9 @@ export class AppleDevDocsClient {
 
 	// Force refresh technologies cache (user-invoked)
 	async refreshTechnologies(): Promise<Record<string, Technology>> {
-		const response = await this.httpClient.getDocumentation<unknown>('documentation/technologies');
+		const response = await this.httpClient.getDocumentation<unknown>(
+			'documentation/technologies',
+		);
 
 		// The API returns a structure with 'references' containing the technologies
 		let technologies: Record<string, Technology> = {};
@@ -114,53 +125,218 @@ export class AppleDevDocsClient {
 		return technologies;
 	}
 
-	async searchFramework(frameworkName: string, query: string, options: {
-		maxResults?: number;
-		platform?: string;
-		symbolType?: string;
-	} = {}): Promise<SearchResult[]> {
-		const {maxResults = 20} = options;
-		const results: SearchResult[] = [];
+	private tokenizeSearchText(text: string): string[] {
+		if (!text) {
+			return [];
+		}
+
+		const tokens = new Set<string>();
+		const basicTokens = text.split(/[\s/._-]+/).filter(Boolean);
+
+		for (const token of basicTokens) {
+			tokens.add(token.toLowerCase());
+
+			const camelParts = token.split(/(?=[A-Z])/).filter(Boolean);
+			if (camelParts.length > 1) {
+				for (const part of camelParts) {
+					tokens.add(part.toLowerCase());
+				}
+
+				tokens.add(camelParts.join('').toLowerCase());
+			}
+		}
+
+		return [...tokens];
+	}
+
+	private buildWildcardPattern(query: string): RegExp {
+		const escaped = query.replaceAll(/[.+^${}()|[\]\\]/g, '\\$&');
+		const pattern = escaped.replaceAll('*', '.*').replaceAll('?', '.');
+		return new RegExp(`^${pattern}$`, 'i');
+	}
+
+	private matchesSearchFilters(
+		ref: FrameworkData['references'][string],
+		options: {
+			platform?: string;
+			symbolType?: string;
+		},
+	): boolean {
+		if (
+			options.symbolType &&
+			ref.kind?.toLowerCase() !== options.symbolType.toLowerCase()
+		) {
+			return false;
+		}
+
+		if (!options.platform) {
+			return true;
+		}
+
+		const platformLower = options.platform.toLowerCase();
+		return Boolean(
+			ref.platforms?.some((platform) =>
+				platform.name?.toLowerCase().includes(platformLower),
+			),
+		);
+	}
+
+	private scoreWildcardReference(
+		title: string,
+		path: string,
+		abstractText: string,
+		wildcardPattern: RegExp,
+	): number {
+		const searchValues = [
+			title,
+			path,
+			abstractText,
+			...this.tokenizeSearchText(title),
+			...this.tokenizeSearchText(path),
+		];
+
+		return searchValues.some((value) => wildcardPattern.test(value)) ? 100 : 0;
+	}
+
+	private scoreKeywordReference(
+		title: string,
+		path: string,
+		abstractText: string,
+		lowerQuery: string,
+		queryTokens: string[],
+	): number {
+		let score = 0;
+
+		if (title.toLowerCase() === lowerQuery || path.toLowerCase() === lowerQuery) {
+			score += 120;
+		}
+
+		for (const queryToken of queryTokens) {
+			if (title.toLowerCase().includes(queryToken)) {
+				score += 50;
+			}
+
+			if (path.toLowerCase().includes(queryToken)) {
+				score += 40;
+			}
+
+			if (abstractText.toLowerCase().includes(queryToken)) {
+				score += 10;
+			}
+		}
+
+		return score;
+	}
+
+	private buildSearchResult(
+		frameworkName: string,
+		framework: FrameworkData,
+		ref: FrameworkData['references'][string],
+		abstractText: string,
+		symbolKind?: string,
+	): SearchResult {
+		return {
+			title: ref.title ?? 'Symbol',
+			framework: frameworkName,
+			path: ref.url,
+			description: abstractText,
+			symbolKind: symbolKind ?? ref.kind,
+			platforms: formatPlatforms(ref.platforms ?? framework.metadata.platforms),
+		};
+	}
+
+	private async resolveSearchResultKind(result: SearchResult): Promise<string | undefined> {
+		if (!result.path || !result.symbolKind || result.symbolKind.toLowerCase() !== 'symbol') {
+			return result.symbolKind;
+		}
+
+		try {
+			const symbol = await this.getSymbol(result.path);
+			return symbol.metadata?.symbolKind ?? result.symbolKind;
+		} catch {
+			return result.symbolKind;
+		}
+	}
+
+	private async enrichSearchResults(results: SearchResult[]): Promise<SearchResult[]> {
+		return Promise.all(
+			results.map(async result => ({
+				...result,
+				symbolKind: await this.resolveSearchResultKind(result),
+			})),
+		);
+	}
+
+	async searchFramework(
+		frameworkName: string,
+		query: string,
+		options: {
+			maxResults?: number;
+			platform?: string;
+			symbolType?: string;
+		} = {},
+	): Promise<SearchResult[]> {
+		const { maxResults = 20 } = options;
+		const results: Array<{ result: SearchResult; score: number }> = [];
 
 		try {
 			const framework = await this.getFramework(frameworkName);
 			const lowerQuery = query.toLowerCase();
+			const queryTokens = this.tokenizeSearchText(query);
+			const wildcardPattern =
+				query.includes('*') || query.includes('?')
+					? this.buildWildcardPattern(query)
+					: undefined;
 
 			for (const ref of Object.values(framework.references)) {
-				if (results.length >= maxResults) {
-					break;
-				}
-
 				const title = ref.title ?? '';
+				const path = ref.url ?? '';
 				const abstractText = extractText(ref.abstract ?? []);
-				if (!title.toLowerCase().includes(lowerQuery) && !abstractText.toLowerCase().includes(lowerQuery)) {
+
+				if (!this.matchesSearchFilters(ref, options)) {
 					continue;
 				}
 
-				if (options.symbolType && ref.kind?.toLowerCase() !== options.symbolType.toLowerCase()) {
-					continue;
-				}
+				const score = wildcardPattern
+					? this.scoreWildcardReference(
+							title,
+							path,
+							abstractText,
+							wildcardPattern,
+						)
+					: this.scoreKeywordReference(
+							title,
+							path,
+							abstractText,
+							lowerQuery,
+							queryTokens,
+						);
 
-				if (options.platform) {
-					const platformLower = options.platform.toLowerCase();
-					if (!ref.platforms?.some(p => p.name?.toLowerCase().includes(platformLower))) {
-						continue;
-					}
+				if (score === 0) {
+					continue;
 				}
 
 				results.push({
-					title: ref.title ?? 'Symbol',
-					framework: frameworkName,
-					path: ref.url,
-					description: abstractText,
-					symbolKind: ref.kind,
-					platforms: formatPlatforms(ref.platforms ?? framework.metadata.platforms),
+					result: this.buildSearchResult(
+						frameworkName,
+						framework,
+						ref,
+						abstractText,
+					),
+					score,
 				});
 			}
 
-			return results;
+			const rankedResults = results
+				.sort((a, b) => b.score - a.score)
+				.slice(0, maxResults)
+				.map((entry) => entry.result);
+
+			return this.enrichSearchResults(rankedResults);
 		} catch (error) {
-			throw new Error(`Framework search failed for ${frameworkName}: ${error instanceof Error ? error.message : String(error)}`);
+			throw new Error(
+				`Framework search failed for ${frameworkName}: ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	}
 }

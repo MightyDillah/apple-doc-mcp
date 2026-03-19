@@ -1,6 +1,10 @@
-import {ErrorCode, McpError} from '@modelcontextprotocol/sdk/types.js';
-import type {FrameworkData, ReferenceData, SymbolData} from '../../apple-client.js';
-import type {ServerContext} from '../context.js';
+import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import type {
+	FrameworkData,
+	ReferenceData,
+	SymbolData,
+} from '../../apple-client.js';
+import type { ServerContext } from '../context.js';
 
 const tokenize = (value: string | undefined): string[] => {
 	if (!value) {
@@ -35,7 +39,10 @@ const tokenize = (value: string | undefined): string[] => {
 	return [...tokens];
 };
 
-export const loadActiveFrameworkData = async ({client, state}: ServerContext): Promise<FrameworkData> => {
+export const loadActiveFrameworkData = async ({
+	client,
+	state,
+}: ServerContext): Promise<FrameworkData> => {
 	const activeTechnology = state.getActiveTechnology();
 	if (!activeTechnology) {
 		throw new McpError(
@@ -64,7 +71,11 @@ export const loadActiveFrameworkData = async ({client, state}: ServerContext): P
 	return data;
 };
 
-const buildEntry = (id: string, ref: ReferenceData, extractText: (abstract?: ReferenceData['abstract']) => string) => {
+const buildEntry = (
+	id: string,
+	ref: ReferenceData,
+	extractText: (abstract?: ReferenceData['abstract']) => string,
+) => {
 	const tokens = new Set<string>();
 	for (const token of tokenize(ref.title)) {
 		tokens.add(token);
@@ -79,12 +90,12 @@ const buildEntry = (id: string, ref: ReferenceData, extractText: (abstract?: Ref
 		tokens.add(token);
 	}
 
-	return {id, ref, tokens: [...tokens]};
+	return { id, ref, tokens: [...tokens] };
 };
 
 const processReferences = (
 	references: Record<string, ReferenceData>,
-	index: Map<string, {id: string; ref: ReferenceData; tokens: string[]}>,
+	index: Map<string, { id: string; ref: ReferenceData; tokens: string[] }>,
 	extractText: (abstract?: ReferenceData['abstract']) => string,
 ) => {
 	for (const [id, ref] of Object.entries(references)) {
@@ -95,14 +106,17 @@ const processReferences = (
 };
 
 export const ensureFrameworkIndex = async (context: ServerContext) => {
-	const {client, state} = context;
+	const { client, state } = context;
 	const framework = await loadActiveFrameworkData(context);
 	const existing = state.getFrameworkIndex();
 	if (existing) {
 		return existing;
 	}
 
-	const index = new Map<string, {id: string; ref: ReferenceData; tokens: string[]}>();
+	const index = new Map<
+		string,
+		{ id: string; ref: ReferenceData; tokens: string[] }
+	>();
 	const extract = client.extractText.bind(client);
 
 	processReferences(framework.references, index, extract);
@@ -115,8 +129,10 @@ export const ensureFrameworkIndex = async (context: ServerContext) => {
 export const expandSymbolReferences = async (
 	context: ServerContext,
 	identifiers: string[],
-): Promise<Map<string, {id: string; ref: ReferenceData; tokens: string[]}>> => {
-	const {client, state} = context;
+): Promise<
+	Map<string, { id: string; ref: ReferenceData; tokens: string[] }>
+> => {
+	const { client, state } = context;
 	const activeTechnology = state.getActiveTechnology();
 	if (!activeTechnology) {
 		throw new McpError(
@@ -134,19 +150,24 @@ export const expandSymbolReferences = async (
 		);
 	}
 
-	const index = (await ensureFrameworkIndex(context));
+	const index = await ensureFrameworkIndex(context);
 
-	const identifiersToProcess = identifiers.filter(identifier => !state.hasExpandedIdentifier(identifier));
+	const identifiersToProcess = identifiers.filter(
+		(identifier) => !state.hasExpandedIdentifier(identifier),
+	);
 
-	const promises = identifiersToProcess.map(async identifier => {
+	const promises = identifiersToProcess.map(async (identifier) => {
 		try {
 			const symbolPath = identifier
 				.replace('doc://com.apple.documentation/', '')
 				.replace(/^documentation\//, 'documentation/');
 			const data: SymbolData = await client.getSymbol(symbolPath);
-			return {data, identifier};
+			return { data, identifier };
 		} catch (error) {
-			console.warn(`Failed to expand identifier ${identifier}:`, error instanceof Error ? error.message : String(error));
+			console.warn(
+				`Failed to expand identifier ${identifier}:`,
+				error instanceof Error ? error.message : String(error),
+			);
 			return null;
 		}
 	});
@@ -154,8 +175,12 @@ export const expandSymbolReferences = async (
 	const results = await Promise.all(promises);
 	for (const result of results) {
 		if (result) {
-			const {data, identifier} = result;
-			processReferences(data.references, index, client.extractText.bind(client));
+			const { data, identifier } = result;
+			processReferences(
+				data.references,
+				index,
+				client.extractText.bind(client),
+			);
 			state.markIdentifierExpanded(identifier);
 		}
 	}
@@ -167,4 +192,3 @@ export const getFrameworkIndexEntries = async (context: ServerContext) => {
 	const index = await ensureFrameworkIndex(context);
 	return [...index.values()];
 };
-

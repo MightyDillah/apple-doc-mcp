@@ -24,7 +24,7 @@ const tokenize = (value) => {
     }
     return [...tokens];
 };
-export const loadActiveFrameworkData = async ({ client, state }) => {
+export const loadActiveFrameworkData = async ({ client, state, }) => {
     const activeTechnology = state.getActiveTechnology();
     if (!activeTechnology) {
         throw new McpError(ErrorCode.InvalidRequest, 'No technology selected. Use `discover_technologies` then `choose_technology` first.');
@@ -88,8 +88,8 @@ export const expandSymbolReferences = async (context, identifiers) => {
     if (!frameworkName) {
         throw new McpError(ErrorCode.InvalidRequest, `Invalid technology identifier: ${activeTechnology.identifier}`);
     }
-    const index = (await ensureFrameworkIndex(context));
-    const identifiersToProcess = identifiers.filter(identifier => !state.hasExpandedIdentifier(identifier));
+    const index = await ensureFrameworkIndex(context);
+    const identifiersToProcess = identifiers.filter((identifier) => !state.hasExpandedIdentifier(identifier));
     const promises = identifiersToProcess.map(async (identifier) => {
         try {
             const symbolPath = identifier

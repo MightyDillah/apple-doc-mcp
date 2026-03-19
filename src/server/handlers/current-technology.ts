@@ -1,6 +1,6 @@
-import type {ServerContext, ToolResponse} from '../context.js';
-import {bold, header} from '../markdown.js';
-import {buildNoTechnologyMessage} from './no-technology.js';
+import type { ServerContext, ToolResponse } from '../context.js';
+import { bold, header } from '../markdown.js';
+import { buildNoTechnologyMessage } from './no-technology.js';
 
 export const buildCurrentTechnologyHandler = (context: ServerContext) => {
 	const noTechnology = buildNoTechnologyMessage(context);
@@ -18,14 +18,13 @@ export const buildCurrentTechnologyHandler = (context: ServerContext) => {
 			bold('Identifier', active.identifier),
 			'',
 			header(2, 'Next actions'),
-			'• `search_symbols { "query": "keyword" }` to find symbols',
+			'• `search_symbols { "query": "keyword" }` to search symbols and related docs',
 			'• `get_documentation { "path": "SymbolName" }` to open docs',
 			'• `choose_technology "Another Framework"` to switch',
 		];
 
 		return {
-			content: [{text: lines.join('\n'), type: 'text'}],
+			content: [{ text: lines.join('\n'), type: 'text' }],
 		};
 	};
 };
-

@@ -101,6 +101,4 @@ jspm_packages/
 test-*.js
 *.test.js 
 
-# Extra
-pnpm-lock.yaml
 dist

@@ -1,12 +1,13 @@
 import axios from 'axios';
-import {MemoryCache} from './cache/memory-cache.js';
+import { MemoryCache } from './cache/memory-cache.js';
 
 const baseUrl = 'https://developer.apple.com/tutorials/data';
 
 const headers = {
 	dnt: '1',
 	referer: 'https://developer.apple.com/documentation',
-	'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+	'User-Agent':
+		'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
 };
 
 export class HttpClient {
@@ -35,8 +36,13 @@ export class HttpClient {
 			this.cache.set(url, response.data);
 			return response.data;
 		} catch (error) {
-			console.error(`Error fetching ${url}:`, error instanceof Error ? error.message : String(error));
-			throw new Error(`Failed to fetch documentation: ${error instanceof Error ? error.message : String(error)}`);
+			console.error(
+				`Error fetching ${url}:`,
+				error instanceof Error ? error.message : String(error),
+			);
+			throw new Error(
+				`Failed to fetch documentation: ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	}
 

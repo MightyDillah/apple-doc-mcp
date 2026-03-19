@@ -1,7 +1,10 @@
 import type {
-	FrameworkData, ReferenceData, Technology, AppleDevDocsClient,
+	FrameworkData,
+	ReferenceData,
+	Technology,
+	AppleDevDocsClient,
 } from '../apple-client.js';
-import {LocalSymbolIndex} from './services/local-symbol-index.js';
+import { LocalSymbolIndex } from './services/local-symbol-index.js';
 
 export type LastDiscovery = {
 	query?: string;
@@ -84,7 +87,10 @@ export class ServerState {
 			const technologyIdentifier = this.activeTechnology?.identifier
 				?.replace('doc://com.apple.documentation/', '')
 				?.replace(/^documentation\//, '');
-			this.localSymbolIndex = new LocalSymbolIndex(client, technologyIdentifier);
+			this.localSymbolIndex = new LocalSymbolIndex(
+				client,
+				technologyIdentifier,
+			);
 		}
 
 		return this.localSymbolIndex;

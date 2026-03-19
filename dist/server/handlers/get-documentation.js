@@ -1,6 +1,6 @@
-import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { bold, header, trimWithEllipsis } from '../markdown.js';
 import { loadActiveFrameworkData } from '../services/framework-loader.js';
+import { resolveSymbol } from '../services/symbol-resolution.js';
 import { buildNoTechnologyMessage } from './no-technology.js';
 const formatIdentifiers = (identifiers, references, client) => {
     const content = [];
@@ -39,33 +39,7 @@ export const buildGetDocumentationHandler = (context) => {
             return noTechnology();
         }
         const framework = await loadActiveFrameworkData(context);
-        const identifierParts = activeTechnology.identifier.split('/');
-        const frameworkName = identifierParts.at(-1);
-        // Try path as-is first, fallback to framework-prefixed path
-        let targetPath = path;
-        let data;
-        try {
-            // First attempt: try the path exactly as provided
-            data = await client.getSymbol(targetPath);
-        }
-        catch (error) {
-            // If that fails and path doesn't already start with documentation/,
-            // try prefixing with framework path
-            if (path.startsWith('documentation/')) {
-                // Path already starts with documentation/, so just rethrow original error
-                throw error;
-            }
-            else {
-                try {
-                    targetPath = `documentation/${frameworkName}/${path}`;
-                    data = await client.getSymbol(targetPath);
-                }
-                catch {
-                    // If both attempts fail, throw the original error with helpful context
-                    throw new McpError(ErrorCode.InvalidRequest, `Failed to load documentation for both "${path}" and "${targetPath}": ${error instanceof Error ? error.message : String(error)}`);
-                }
-            }
-        }
+        const { data } = await resolveSymbol(client, activeTechnology, path);
         const title = data.metadata?.title || 'Symbol';
         const kind = data.metadata?.symbolKind || 'Unknown';
         const platforms = client.formatPlatforms(data.metadata?.platforms ?? framework.metadata.platforms);

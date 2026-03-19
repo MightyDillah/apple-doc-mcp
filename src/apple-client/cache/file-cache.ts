@@ -1,7 +1,7 @@
-import {promises as fs} from 'node:fs';
-import {join, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
-import type {FrameworkData, SymbolData, Technology} from '../types/index.js';
+import { promises as fs } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { FrameworkData, SymbolData, Technology } from '../types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,7 +17,9 @@ export class FileCache {
 		this.technologiesCachePath = join(this.docsDir, 'technologies.json');
 	}
 
-	async loadFramework(frameworkName: string): Promise<FrameworkData | undefined> {
+	async loadFramework(
+		frameworkName: string,
+	): Promise<FrameworkData | undefined> {
 		await this.ensureCacheDir();
 		try {
 			const raw = await fs.readFile(this.getCachePath(frameworkName), 'utf8');
@@ -31,15 +33,24 @@ export class FileCache {
 		}
 	}
 
-	async saveFramework(frameworkName: string, data: FrameworkData): Promise<void> {
+	async saveFramework(
+		frameworkName: string,
+		data: FrameworkData,
+	): Promise<void> {
 		await this.ensureCacheDir();
-		await fs.writeFile(this.getCachePath(frameworkName), JSON.stringify(data, null, 2));
+		await fs.writeFile(
+			this.getCachePath(frameworkName),
+			JSON.stringify(data, null, 2),
+		);
 	}
 
 	async loadSymbol(path: string): Promise<SymbolData | undefined> {
 		try {
 			const safePath = path.replaceAll('/', '__');
-			const raw = await fs.readFile(join(this.docsDir, `${safePath}.json`), 'utf8');
+			const raw = await fs.readFile(
+				join(this.docsDir, `${safePath}.json`),
+				'utf8',
+			);
 			return JSON.parse(raw) as SymbolData;
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
@@ -53,7 +64,10 @@ export class FileCache {
 	async saveSymbol(path: string, data: SymbolData): Promise<void> {
 		await this.ensureCacheDir();
 		const safePath = path.replaceAll('/', '__');
-		await fs.writeFile(join(this.docsDir, `${safePath}.json`), JSON.stringify(data, null, 2));
+		await fs.writeFile(
+			join(this.docsDir, `${safePath}.json`),
+			JSON.stringify(data, null, 2),
+		);
 	}
 
 	async loadTechnologies(): Promise<Record<string, Technology> | undefined> {
@@ -66,7 +80,7 @@ export class FileCache {
 			if (parsed && typeof parsed === 'object') {
 				// First try: data has a 'references' property (new format from API)
 				if ('references' in parsed) {
-					const wrapper = parsed as {references?: Record<string, Technology>};
+					const wrapper = parsed as { references?: Record<string, Technology> };
 					const refs = wrapper.references ?? {};
 					// Validate that we got actual technology data
 					if (Object.keys(refs).length > 0) {
@@ -79,14 +93,20 @@ export class FileCache {
 				if (Object.keys(direct).length > 0) {
 					// Check if it looks like technology data (has identifier/title fields)
 					const firstValue = Object.values(direct)[0];
-					if (firstValue && typeof firstValue === 'object' && ('identifier' in firstValue || 'title' in firstValue)) {
+					if (
+						firstValue &&
+						typeof firstValue === 'object' &&
+						('identifier' in firstValue || 'title' in firstValue)
+					) {
 						return direct;
 					}
 				}
 			}
 
 			// If we got here, the cache might be corrupted or empty
-			console.warn('Technologies cache exists but appears invalid, will refetch');
+			console.warn(
+				'Technologies cache exists but appears invalid, will refetch',
+			);
 			return undefined;
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
@@ -98,9 +118,14 @@ export class FileCache {
 		}
 	}
 
-	async saveTechnologies(technologies: Record<string, Technology>): Promise<void> {
+	async saveTechnologies(
+		technologies: Record<string, Technology>,
+	): Promise<void> {
 		await this.ensureCacheDir();
-		await fs.writeFile(this.technologiesCachePath, JSON.stringify(technologies, null, 2));
+		await fs.writeFile(
+			this.technologiesCachePath,
+			JSON.stringify(technologies, null, 2),
+		);
 	}
 
 	private sanitizeFrameworkName(name: string): string {
@@ -108,7 +133,7 @@ export class FileCache {
 	}
 
 	private async ensureCacheDir(): Promise<void> {
-		await fs.mkdir(this.docsDir, {recursive: true});
+		await fs.mkdir(this.docsDir, { recursive: true });
 	}
 
 	private getCachePath(frameworkName: string): string {

@@ -1,49 +1,59 @@
 {
-  "name": "apple-doc-mcp-server",
-  "version": "1.9.1",
-  "description": "MCP server providing seamless access to Apple Developer Documentation with smart search and wildcard support",
-  "main": "dist/index.js",
-  "type": "module",
-  "bin": {
-    "apple-doc-mcp-server": "dist/index.js"
-  },
-  "files": [
-    "dist/",
-    "README.md",
-    "LICENSE",
-    ".xo-config.js"
-  ],
-  "keywords": [
-    "mcp",
-    "apple",
-    "documentation",
-    "ios",
-    "macos",
-    "swiftui",
-    "uikit"
-  ],
-  "author": "MightyDillah",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/MightyDillah/apple-doc-mcp.git"
-  },
-  "bugs": {
-    "url": "https://github.com/MightyDillah/apple-doc-mcp/issues"
-  },
-  "homepage": "https://github.com/MightyDillah/apple-doc-mcp#readme",
-  "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
-    "lint": "tsc --noEmit && xo src",
-    "lint:fix": "tsc --noEmit && xo src --fix",
-    "start": "node dist/index.js"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.20.2",
-    "axios": "^1.12.2"
-  },
-  "devDependencies": {
-    "@types/node": "^24.9.1",
-    "typescript": "^5.9.3",
-    "xo": "^1.2.3"
-  }
+	"name": "apple-doc-mcp-server",
+	"version": "1.9.5",
+	"description": "MCP server providing seamless access to Apple Developer Documentation with smart search and wildcard support",
+	"main": "dist/index.js",
+	"type": "module",
+	"bin": {
+		"apple-doc-mcp-server": "dist/index.js"
+	},
+	"files": [
+		"dist/",
+		"CHANGELOG.md",
+		"README.md",
+		"LICENSE"
+	],
+	"keywords": [
+		"mcp",
+		"apple",
+		"documentation",
+		"ios",
+		"macos",
+		"swiftui",
+		"uikit"
+	],
+	"author": "MightyDillah",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/MightyDillah/apple-doc-mcp.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MightyDillah/apple-doc-mcp/issues"
+	},
+	"homepage": "https://github.com/MightyDillah/apple-doc-mcp#readme",
+	"scripts": {
+		"build": "tsc && chmod +x dist/index.js",
+		"typecheck": "tsc --noEmit",
+		"lint": "eslint src",
+		"lint:fix": "eslint src --fix",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"check": "yarn typecheck && yarn lint && yarn format:check",
+		"start": "node dist/index.js"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.27.1",
+		"axios": "^1.13.6"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.36.0",
+		"@types/node": "25.5.0",
+		"eslint": "^9.36.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-n": "^17.24.0",
+		"globals": "17.4.0",
+		"prettier": "^3.8.1",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.57.1"
+	}
 }

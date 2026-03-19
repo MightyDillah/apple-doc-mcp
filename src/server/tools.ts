@@ -1,25 +1,31 @@
-import type {Server} from '@modelcontextprotocol/sdk/server/index.js';
-import {CallToolRequestSchema, ListToolsRequestSchema} from '@modelcontextprotocol/sdk/types.js';
-import type {ServerContext} from './context.js';
-import {buildDiscoverHandler} from './handlers/discover.js';
-import {buildChooseTechnologyHandler} from './handlers/choose-technology.js';
-import {buildCurrentTechnologyHandler} from './handlers/current-technology.js';
-import {buildGetDocumentationHandler} from './handlers/get-documentation.js';
-import {buildSearchSymbolsHandler} from './handlers/search-symbols.js';
-import {buildVersionHandler} from './handlers/version.js';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import {
+	CallToolRequestSchema,
+	ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import type { ServerContext } from './context.js';
+import { buildDiscoverHandler } from './handlers/discover.js';
+import { buildChooseTechnologyHandler } from './handlers/choose-technology.js';
+import { buildCurrentTechnologyHandler } from './handlers/current-technology.js';
+import { buildGetDocumentationHandler } from './handlers/get-documentation.js';
+import { buildSearchSymbolsHandler } from './handlers/search-symbols.js';
+import { buildVersionHandler } from './handlers/version.js';
 
 type ToolDefinition = {
 	name: string;
 	description: string;
 	inputSchema: Record<string, unknown>;
-	handler: (args: any) => Promise<{content: Array<{text: string; type: 'text'}>}>;
+	handler: (
+		args: Record<string, unknown>,
+	) => Promise<{ content: Array<{ text: string; type: 'text' }> }>;
 };
 
 export const registerTools = (server: Server, context: ServerContext) => {
 	const toolDefinitions: ToolDefinition[] = [
 		{
 			name: 'discover_technologies',
-			description: 'Explore and filter available Apple technologies/frameworks before choosing one',
+			description:
+				'Explore and filter available Apple technologies/frameworks before choosing one',
 			inputSchema: {
 				type: 'object',
 				required: [],
@@ -38,18 +44,20 @@ export const registerTools = (server: Server, context: ServerContext) => {
 					},
 				},
 			},
-			handler: buildDiscoverHandler(context),
+			handler: (args) => buildDiscoverHandler(context)(args),
 		},
 		{
 			name: 'choose_technology',
-			description: 'Select the framework/technology to scope all subsequent searches and documentation lookups',
+			description:
+				'Select the framework/technology to scope all subsequent searches and documentation lookups',
 			inputSchema: {
 				type: 'object',
 				required: [],
 				properties: {
 					identifier: {
 						type: 'string',
-						description: 'Optional technology identifier (e.g. doc://.../SwiftUI)',
+						description:
+							'Optional technology identifier (e.g. doc://.../SwiftUI)',
 					},
 					name: {
 						type: 'string',
@@ -57,39 +65,47 @@ export const registerTools = (server: Server, context: ServerContext) => {
 					},
 				},
 			},
-			handler: buildChooseTechnologyHandler(context),
+			handler: (args) =>
+				buildChooseTechnologyHandler(context)(
+					args as { identifier?: string; name?: string },
+				),
 		},
 		{
 			name: 'current_technology',
-			description: 'Report the currently selected technology and how to change it',
+			description:
+				'Report the currently selected technology and how to change it',
 			inputSchema: {
 				type: 'object',
 				required: [],
 				properties: {},
 			},
-			handler: buildCurrentTechnologyHandler(context),
+			handler: () => buildCurrentTechnologyHandler(context)(),
 		},
 		{
 			name: 'get_documentation',
-			description: 'Get detailed documentation for specific symbols within the selected technology. '
-				+ 'Use this for known symbol names (e.g., "View", "Button", "GridItem"). Accepts relative symbol names.',
+			description:
+				'Get detailed documentation for specific symbols within the selected technology. ' +
+				'Use this for known symbol names or paths (e.g., "View", "ButtonStyle", "documentation/SwiftUI/GridItem").',
 			inputSchema: {
 				type: 'object',
 				required: ['path'],
 				properties: {
 					path: {
 						type: 'string',
-						description: 'Symbol path or relative name (e.g. "View", "GridItem", "Button")',
+						description:
+							'Symbol path or relative name (e.g. "View", "GridItem", "Button")',
 					},
 				},
 			},
-			handler: buildGetDocumentationHandler(context),
+			handler: (args) =>
+				buildGetDocumentationHandler(context)(args as { path: string }),
 		},
 		{
 			name: 'search_symbols',
-			description: 'Search and discover symbols within the currently selected technology. '
-				+ 'Use this for exploration and finding symbols by keywords. Supports wildcards (* and ?). '
-				+ 'For specific known symbols, use get_documentation instead.',
+			description:
+				'Search the selected technology with symbol-first results. ' +
+				'Exact symbol names are resolved directly when possible, wildcard queries support * and ?, ' +
+				'and broader keyword searches return symbols first with articles and guides listed separately.',
 			inputSchema: {
 				type: 'object',
 				required: ['query'],
@@ -104,7 +120,8 @@ export const registerTools = (server: Server, context: ServerContext) => {
 					},
 					query: {
 						type: 'string',
-						description: 'Search keywords with wildcard support (* for any characters, ? for single character)',
+						description:
+							'Search keywords with wildcard support (* for any characters, ? for single character)',
 					},
 					symbolType: {
 						type: 'string',
@@ -112,26 +129,41 @@ export const registerTools = (server: Server, context: ServerContext) => {
 					},
 				},
 			},
-			handler: buildSearchSymbolsHandler(context),
+			handler: (args) =>
+				buildSearchSymbolsHandler(context)(
+					args as {
+						maxResults?: number;
+						platform?: string;
+						query: string;
+						symbolType?: string;
+					},
+				),
 		},
 		{
 			name: 'get_version',
-			description: 'Get the current version information of the Apple Doc MCP server',
+			description:
+				'Get the current version information of the Apple Doc MCP server',
 			inputSchema: {
 				type: 'object',
 				required: [],
 				properties: {},
 			},
-			handler: buildVersionHandler(),
+			handler: () => buildVersionHandler()(),
 		},
 	];
 
 	server.setRequestHandler(ListToolsRequestSchema, async () => ({
-		tools: toolDefinitions.map(({name, description, inputSchema}) => ({name, description, inputSchema})),
+		tools: toolDefinitions.map(({ name, description, inputSchema }) => ({
+			name,
+			description,
+			inputSchema,
+		})),
 	}));
 
-	server.setRequestHandler(CallToolRequestSchema, async request => {
-		const tool = toolDefinitions.find(entry => entry.name === request.params.name);
+	server.setRequestHandler(CallToolRequestSchema, async (request) => {
+		const tool = toolDefinitions.find(
+			(entry) => entry.name === request.params.name,
+		);
 		if (!tool) {
 			throw new Error(`Unknown tool: ${request.params.name}`);
 		}
@@ -139,4 +171,3 @@ export const registerTools = (server: Server, context: ServerContext) => {
 		return tool.handler(request.params.arguments ?? {});
 	});
 };
-

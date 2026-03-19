@@ -14,7 +14,7 @@ export const buildCurrentTechnologyHandler = (context) => {
             bold('Identifier', active.identifier),
             '',
             header(2, 'Next actions'),
-            '• `search_symbols { "query": "keyword" }` to find symbols',
+            '• `search_symbols { "query": "keyword" }` to search symbols and related docs',
             '• `get_documentation { "path": "SymbolName" }` to open docs',
             '• `choose_technology "Another Framework"` to switch',
         ];

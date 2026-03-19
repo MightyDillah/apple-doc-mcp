@@ -1,6 +1,6 @@
-import {readFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
-import {dirname, join} from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -12,7 +12,7 @@ const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
 	name: string;
 	description: string;
 	author: string;
-	repository?: {url: string};
+	repository?: { url: string };
 };
 
 export const buildVersionHandler = () => async () => ({
