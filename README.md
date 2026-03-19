@@ -23,15 +23,9 @@ Thank you to the Github team for gifting me a year subscription to Copilot Pro+ 
   - Moved cached docs into `.cache/` to keep the repo clean
   - Routed MCP logging to stderr so protocol stdout stays clean (this was breaking codex symbol search)
 
-## Quick Start
-
-`"Use apple mcp select swiftui search tabbar"`
-
-Configure your MCP client (example):
+## Installation
 
 ## VS Code
-
-Easiest method in VS Code (recommended):
 
 1. Open Command Palette (`Shift+Cmd+P`).
 2. Run `MCP: Add Server`.
@@ -42,7 +36,18 @@ Easiest method in VS Code (recommended):
 apple-doc-mcp-server
 ```
 
-Manual:
+## Claude Code:
+
+```bash
+claude mcp add apple-docs -- npx apple-doc-mcp-server@latest
+```
+
+## OpenAI Codex:
+
+```bash
+codex mcp add apple-doc-mcp -- npx apple-doc-mcp-server@latest
+```
+## Manual:
 
 ```json
 {
@@ -55,19 +60,7 @@ Manual:
 }
 ```
 
-Claude Code:
-
-```bash
-claude mcp add apple-docs -- npx apple-doc-mcp-server@latest
-```
-
-OpenAI Codex:
-
-```bash
-codex mcp add apple-doc-mcp -- npx apple-doc-mcp-server@latest
-```
-
-For local development:
+## Local:
 
 ```bash
 yarn install
