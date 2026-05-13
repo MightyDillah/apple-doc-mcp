@@ -7,7 +7,7 @@ if you find this MCP helpful, I'd really apperciate it if you clicked on the [‚ù
 
 ## üìã Changelog
 
-Thank you to the Github team for gifting me a year subscription to Copilot Pro+ you guys rock! and thank you @billibala, @theoddbrick, @christopherbattlefrontlegal for sponsoring! you guys are amazing.
+Thank you to the Github team for your support! and thank you @billibala, @theoddbrick, @christopherbattlefrontlegal for sponsoring! you guys are amazing.
 
 - Full release history lives in [CHANGELOG.md](CHANGELOG.md).
 
